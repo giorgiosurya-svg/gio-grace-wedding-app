@@ -655,13 +655,16 @@
   <!-- ═══════════════ GUESTS ═══════════════ -->
   <div id="page-guests" class="page">
     <div class="kpi-row" id="guest-kpi-row"></div>
+    <!-- Analytics summary -->
+    <div id="guest-analytics-wrap" style="margin-bottom:16px;"></div>
     <div class="card">
       <div class="card-header">
         <h3>Guest List</h3>
-        <div style="display:flex;gap:10px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           <div class="search-wrap">
             <input type="text" id="guest-search-input" class="search-bar" style="width:180px;" placeholder="Search guests..." oninput="filterGuests(this.value)">
           </div>
+          <button id="guest-pdf-btn" class="btn btn-outline btn-sm" onclick="exportGuestPDF(null)" style="white-space:nowrap;">📄 Save PDF</button>
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-guest')">+ Add Guest</button>
         </div>
       </div>
@@ -3573,9 +3576,129 @@ function setGuestEventTab(evKey) {
   renderGuests();
 }
 
+function renderGuestAnalytics() {
+  const el = document.getElementById('guest-analytics-wrap');
+  if (!el) return;
+  const evDefs = [
+    { key: 'church',      label: '⛪ Church',       color: '#c4bdf5' },
+    { key: 'engagement',  label: '💍 Engagement',   color: '#a8d8ea' },
+    { key: 'prewedding',  label: '📸 Pre-Wedding',  color: '#b8efcc' },
+    { key: 'wedding',     label: '🌊 Wedding',      color: '#fce4a0' },
+  ];
+
+  const cards = evDefs.map(ev => {
+    const guests = state.guests.filter(g => (g.events||[]).includes(ev.key));
+    const confirmed  = guests.filter(g => g.rsvp === 'Confirmed');
+    const pending    = guests.filter(g => g.rsvp === 'Pending');
+    const declined   = guests.filter(g => g.rsvp === 'Declined');
+    const totalPax   = confirmed.reduce((s,g) => s + 1 + (g.plusGuests||0), 0)
+                     + pending.reduce((s,g)   => s + 1 + (g.plusGuests||0), 0);
+    const confirmedPax = confirmed.reduce((s,g) => s + 1 + (g.plusGuests||0), 0);
+    const brideCount = guests.filter(g => g.side === 'Bride').length;
+    const groomCount = guests.filter(g => g.side === 'Groom').length;
+    const pct = guests.length > 0 ? Math.round(confirmed.length / guests.length * 100) : 0;
+
+    return `<div class="card" style="margin:0;flex:1;min-width:200px;">
+      <div style="padding:14px 16px;border-bottom:3px solid ${ev.color};">
+        <div style="font-family:'Raleway',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;">${ev.label}</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--navy);line-height:1;">${totalPax} <span style="font-size:14px;color:var(--muted);">pax</span></div>
+        <div style="font-size:11px;color:var(--muted);font-family:'Raleway',sans-serif;margin-top:2px;">${guests.length} guest group${guests.length!==1?'s':''} total</div>
+        <div style="margin-top:10px;height:5px;background:var(--border);border-radius:3px;">
+          <div style="height:5px;background:var(--success);border-radius:3px;width:${pct}%;transition:width .4s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:'Raleway',sans-serif;font-size:10px;">
+          <span style="color:var(--success);font-weight:700;">✓ ${confirmed.length} confirmed (${confirmedPax} pax)</span>
+          <span style="color:var(--muted);">${pct}%</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;font-family:'Raleway',sans-serif;font-size:10px;color:var(--muted);">
+          <span>⏳ ${pending.length} pending</span>
+          <span>✗ ${declined.length} declined</span>
+          <span>👰 ${brideCount} bride · 🤵 ${groomCount} groom</span>
+        </div>
+        <button onclick="exportGuestPDF('${ev.key}')"
+          style="margin-top:10px;width:100%;padding:5px 0;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--navy);font-family:'Raleway',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">
+          📄 Save PDF
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;">${cards}</div>`;
+}
+
+function exportGuestPDF(evKey) {
+  const evLabels = {church:'⛪ Church — Surabaya', engagement:'💍 Engagement (Tingjing/Sangjit)', prewedding:'📸 Pre-Wedding Shoot', wedding:'🌊 Wedding Reception — Bali'};
+  const title = evKey ? (evLabels[evKey] || evKey) : 'All Events';
+  const guests = evKey
+    ? state.guests.filter(g => (g.events||[]).includes(evKey))
+    : state.guests;
+
+  if (guests.length === 0) { _showToast('No guests to export', 'var(--muted)'); return; }
+
+  const dateStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+
+  const confirmed  = guests.filter(g => g.rsvp === 'Confirmed');
+  const pending    = guests.filter(g => g.rsvp === 'Pending');
+  const declined   = guests.filter(g => g.rsvp === 'Declined');
+  const totalPax   = guests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+  const confPax    = confirmed.reduce((s,g)=>s+1+(g.plusGuests||0),0);
+
+  const rows = guests.map((g,i) => {
+    const pax = 1 + (g.plusGuests||0);
+    const rsvpColor = g.rsvp==='Confirmed'?'#2e7d32':g.rsvp==='Declined'?'#c62828':'#e65100';
+    return `<tr style="background:${i%2===1?'#f9f9f9':'#fff'}">
+      <td style="padding:6px 10px;">${i+1}</td>
+      <td style="padding:6px 10px;font-weight:600;">${g.name}</td>
+      <td style="padding:6px 10px;">${g.side}</td>
+      <td style="padding:6px 10px;text-align:center;">${g.table ? 'Table '+g.table : '—'}</td>
+      <td style="padding:6px 10px;text-align:center;">${g.meal}</td>
+      <td style="padding:6px 10px;text-align:center;font-weight:700;color:${rsvpColor};">${g.rsvp}</td>
+      <td style="padding:6px 10px;text-align:center;">${g.plusGuests>0?'+'+g.plusGuests:'—'}</td>
+      <td style="padding:6px 10px;text-align:center;font-weight:700;">${pax}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Guest List — ${title}</title>
+    <style>
+      body{font-family:'Georgia',serif;margin:32px;color:#1a2e44;}
+      h1{font-size:22px;margin:0 0 4px;}
+      .sub{font-size:12px;color:#888;margin-bottom:18px;}
+      .summary{display:flex;gap:24px;margin-bottom:18px;padding:12px 16px;background:#f0f4ff;border-radius:8px;font-size:12px;}
+      .summary strong{font-size:18px;display:block;}
+      table{width:100%;border-collapse:collapse;font-size:12px;}
+      th{background:#1a2e44;color:#fff;padding:7px 10px;text-align:left;}
+      td{border-bottom:1px solid #eee;}
+      @media print{body{margin:16px;}}
+    </style>
+  </head><body>
+    <h1>💍 Giorgio & Grace — Guest List</h1>
+    <div class="sub">${title} &nbsp;|&nbsp; Generated: ${dateStr}</div>
+    <div class="summary">
+      <div><strong>${guests.length}</strong>Guest Groups</div>
+      <div><strong>${totalPax}</strong>Total Pax (excl. declined)</div>
+      <div><strong style="color:#2e7d32">${confirmed.length}</strong>Confirmed (${confPax} pax)</div>
+      <div><strong style="color:#e65100">${pending.length}</strong>Pending</div>
+      <div><strong style="color:#c62828">${declined.length}</strong>Declined</div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Name</th><th>Side</th><th>Table</th><th>Meal</th><th>RSVP</th><th>+Guests</th><th>Pax</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
+}
+
 function renderGuests() {
   const filter = _guestNameFilter;
   const evTab  = _guestEventFilter;
+  renderGuestAnalytics();
   const conf  = state.guests.filter(g=>g.rsvp==='Confirmed').length;
   const pend  = state.guests.filter(g=>g.rsvp==='Pending').length;
   const decl  = state.guests.filter(g=>g.rsvp==='Declined').length;
@@ -3648,6 +3771,14 @@ function renderGuests() {
     </button>`;
   }).join('');
 
+  // Update PDF button label to match active tab
+  const pdfBtn = document.getElementById('guest-pdf-btn');
+  if (pdfBtn) {
+    const evLabelMap = {church:'⛪ Church',engagement:'💍 Engagement',prewedding:'📸 Pre-Wed',wedding:'🌊 Wedding'};
+    pdfBtn.textContent = evTab ? `📄 PDF — ${evLabelMap[evTab]||evTab}` : '📄 Save PDF (All)';
+    pdfBtn.onclick = () => exportGuestPDF(evTab || null);
+  }
+
   // Filter list
   let filtered = state.guests;
   if (evTab) filtered = filtered.filter(g => (g.events||[]).includes(evTab));
@@ -3685,17 +3816,24 @@ function renderGuests() {
         <span style="background:var(--blue-light);color:var(--blue);font-weight:700;font-size:13px;padding:3px 10px;border-radius:20px;font-family:'Raleway',sans-serif;">${pax}</span>
       </td>
       <td style="min-width:160px;">${evBadges||'<span style="color:var(--muted);font-size:12px;">None</span>'}</td>
-      <td style="white-space:nowrap;">
-        <select class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:12px;" onchange="updateGuestRSVP(${g.id}, this.value)">
-          <option ${g.rsvp==='Pending'?'selected':''}>Pending</option>
-          <option ${g.rsvp==='Confirmed'?'selected':''}>Confirmed</option>
-          <option ${g.rsvp==='Declined'?'selected':''}>Declined</option>
-        </select>
-        <button onclick="openEditGuest(${g.id})"
-          style="margin-left:4px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);font-size:12px;cursor:pointer;font-family:'Raleway',sans-serif;">
-          ✏️
-        </button>
-        <button class="btn-danger-ghost" onclick="deleteGuest(${g.id})" style="margin-left:2px;">✕</button>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:160px;">
+          <select class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:12px;width:100%;" onchange="updateGuestRSVP(${g.id}, this.value)">
+            <option ${g.rsvp==='Pending'?'selected':''}>Pending</option>
+            <option ${g.rsvp==='Confirmed'?'selected':''}>Confirmed</option>
+            <option ${g.rsvp==='Declined'?'selected':''}>Declined</option>
+          </select>
+          <div style="display:flex;gap:5px;">
+            <button onclick="openEditGuest(${g.id})"
+              style="flex:1;padding:4px 8px;border:1px solid var(--blue);border-radius:6px;background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;cursor:pointer;font-family:'Raleway',sans-serif;">
+              ✏️ Edit
+            </button>
+            <button onclick="deleteGuest(${g.id})"
+              style="padding:4px 8px;border:1px solid var(--danger);border-radius:6px;background:#fff;color:var(--danger);font-size:11px;cursor:pointer;font-family:'Raleway',sans-serif;">
+              ✕
+            </button>
+          </div>
+        </div>
       </td>
     </tr>`;
   }).join('');
