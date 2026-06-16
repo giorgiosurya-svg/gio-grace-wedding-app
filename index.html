@@ -1374,6 +1374,69 @@
   </div>
 </div>
 
+<!-- Edit Guest -->
+<div class="modal-overlay" id="modal-edit-guest">
+  <div class="modal" style="width:560px;">
+    <div class="modal-header"><h3>Edit Guest</h3><button class="close-btn" onclick="closeModal('modal-edit-guest')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-guest-id">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;"><label>Full Name</label><input type="text" id="edit-guest-name" placeholder="First & Last name"></div>
+        <div class="form-group"><label>Side</label>
+          <select id="edit-guest-side"><option>Bride</option><option>Groom</option><option>Both</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>RSVP</label>
+          <select id="edit-guest-rsvp"><option>Pending</option><option>Confirmed</option><option>Declined</option></select>
+        </div>
+        <div class="form-group"><label>Meal Preference</label>
+          <select id="edit-guest-meal"><option>Standard</option><option>Vegetarian</option><option>Vegan</option><option>Halal</option><option>Gluten Free</option></select>
+        </div>
+        <div class="form-group" style="min-width:100px;flex:0 0 100px;">
+          <label>Table #</label><input type="number" id="edit-guest-table" placeholder="e.g. 3" min="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Additional Guests Brought (incl. +1)</label>
+          <select id="edit-guest-plus-count">
+            <option value="0">0 — Hadir sendiri</option>
+            <option value="1">+1 guest</option><option value="2">+2 guests</option><option value="3">+3 guests</option>
+            <option value="4">+4 guests</option><option value="5">+5 guests</option><option value="6">+6 guests</option>
+            <option value="7">+7 guests</option><option value="8">+8 guests</option><option value="9">+9 guests</option>
+            <option value="10">+10 guests</option><option value="11">+11 guests</option><option value="12">+12 guests</option>
+            <option value="13">+13 guests</option><option value="14">+14 guests</option><option value="15">+15 guests</option>
+            <option value="16">+16 guests</option><option value="17">+17 guests</option><option value="18">+18 guests</option>
+            <option value="19">+19 guests</option><option value="20">+20 guests</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:4px;">
+        <label style="font-size:10px;color:var(--muted);font-family:'Raleway',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:600;display:block;margin-bottom:10px;">Invited to Events</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
+            <input type="checkbox" id="edit-ev-church" style="accent-color:var(--blue);width:15px;height:15px;"> ⛪ Church — Surabaya
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
+            <input type="checkbox" id="edit-ev-engagement" style="accent-color:var(--blue);width:15px;height:15px;"> 💍 Engagement (Tingjing / Sangjit)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
+            <input type="checkbox" id="edit-ev-prewedding" style="accent-color:var(--blue);width:15px;height:15px;"> 📸 Pre-Wedding Shoot
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
+            <input type="checkbox" id="edit-ev-wedding" style="accent-color:var(--blue);width:15px;height:15px;"> 🌊 Wedding Reception — Bali
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-guest')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditGuest()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Rundown Event -->
 <div class="modal-overlay" id="modal-add-rundown">
   <div class="modal">
@@ -2688,13 +2751,13 @@ function updateVendorPackage(vendorId, pkgId, field, val) {
   const pkg = v.packages.find(p => p.id === pkgId);
   if (!pkg) return;
   pkg[field] = field === 'price' ? (parseFloat(val) || 0) : val;
-  // Update simulator if this package is currently selected
-  Object.keys(vendorSim).forEach(cat => {
-    if (vendorSim[cat] && vendorSim[cat].vendorId === vendorId && vendorSim[cat].pkgId === pkgId) {
-      vendorSim[cat].price = parseFloat(pkg.price) || 0;
-      vendorSim[cat].label = pkg.name || 'Package';
-    }
-  });
+  // Update basket entry if this package is in comparison
+  const simKey = vendorId + '_' + pkgId;
+  if (vendorSim[simKey]) {
+    vendorSim[simKey].price = parseFloat(pkg.price) || 0;
+    vendorSim[simKey].label = pkg.name || 'Package';
+    vendorSim[simKey].notes = pkg.notes || '';
+  }
   renderBudgetSimulator();
   scheduleSave();
 }
@@ -2702,11 +2765,8 @@ function updateVendorPackage(vendorId, pkgId, field, val) {
 function deleteVendorPackage(vendorId, pkgId) {
   const v = state.vendors.find(x => x.id === vendorId);
   if (!v || !v.packages) return;
-  // Deselect if selected
-  Object.keys(vendorSim).forEach(cat => {
-    if (vendorSim[cat] && vendorSim[cat].vendorId === vendorId && vendorSim[cat].pkgId === pkgId)
-      delete vendorSim[cat];
-  });
+  // Remove from comparison basket if present
+  delete vendorSim[vendorId + '_' + pkgId];
   v.packages = v.packages.filter(p => p.id !== pkgId);
   renderVendors();
   scheduleSave();
@@ -2927,7 +2987,10 @@ function renderBudgetSimulator() {
         <div style="color:var(--blue-mid);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Raleway',sans-serif;margin-bottom:2px;">Budget Simulator</div>
         <h3 style="color:#fff;margin:0;">Compare Packages & Assign to Events</h3>
       </div>
-      <span style="font-size:12px;color:rgba(255,255,255,.5);font-family:'Raleway',sans-serif;">Click ＋ Compare on any package row below</span>
+      <div style="text-align:right;">
+        <div style="font-size:12px;color:rgba(255,255,255,.7);font-family:'Raleway',sans-serif;">Click <strong style="color:#fff;">＋ Compare</strong> on any package</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);font-family:'Raleway',sans-serif;margin-top:2px;">You can select as many as you want across all vendors</div>
+      </div>
     </div>
     <div class="card-body" style="padding:16px 20px;">
       ${basketHtml}
@@ -3562,13 +3625,17 @@ function renderGuests() {
         <span style="background:var(--blue-light);color:var(--blue);font-weight:700;font-size:13px;padding:3px 10px;border-radius:20px;font-family:'Raleway',sans-serif;">${pax}</span>
       </td>
       <td style="min-width:160px;">${evBadges||'<span style="color:var(--muted);font-size:12px;">None</span>'}</td>
-      <td>
+      <td style="white-space:nowrap;">
         <select class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:12px;" onchange="updateGuestRSVP(${g.id}, this.value)">
           <option ${g.rsvp==='Pending'?'selected':''}>Pending</option>
           <option ${g.rsvp==='Confirmed'?'selected':''}>Confirmed</option>
           <option ${g.rsvp==='Declined'?'selected':''}>Declined</option>
         </select>
-        <button class="btn-danger-ghost" onclick="deleteGuest(${g.id})">✕</button>
+        <button onclick="openEditGuest(${g.id})"
+          style="margin-left:4px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);font-size:12px;cursor:pointer;font-family:'Raleway',sans-serif;">
+          ✏️
+        </button>
+        <button class="btn-danger-ghost" onclick="deleteGuest(${g.id})" style="margin-left:2px;">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -3602,6 +3669,39 @@ function addGuest() {
   scheduleSave();
 }
 function deleteGuest(id) { state.guests = state.guests.filter(g=>g.id!==id); renderGuests(); scheduleSave(); }
+
+function openEditGuest(id) {
+  const g = state.guests.find(x => x.id === id);
+  if (!g) return;
+  document.getElementById('edit-guest-id').value          = g.id;
+  document.getElementById('edit-guest-name').value        = g.name || '';
+  document.getElementById('edit-guest-side').value        = g.side || 'Bride';
+  document.getElementById('edit-guest-rsvp').value        = g.rsvp || 'Pending';
+  document.getElementById('edit-guest-meal').value        = g.meal || 'Standard';
+  document.getElementById('edit-guest-table').value       = g.table || '';
+  document.getElementById('edit-guest-plus-count').value  = g.plusGuests || 0;
+  ['church','engagement','prewedding','wedding'].forEach(ev => {
+    const cb = document.getElementById('edit-ev-' + ev);
+    if (cb) cb.checked = Array.isArray(g.events) && g.events.includes(ev);
+  });
+  openModal('modal-edit-guest');
+}
+
+function saveEditGuest() {
+  const id = parseInt(document.getElementById('edit-guest-id').value);
+  const g = state.guests.find(x => x.id === id);
+  if (!g) return;
+  g.name       = document.getElementById('edit-guest-name').value || g.name;
+  g.side       = document.getElementById('edit-guest-side').value;
+  g.rsvp       = document.getElementById('edit-guest-rsvp').value;
+  g.meal       = document.getElementById('edit-guest-meal').value;
+  g.table      = document.getElementById('edit-guest-table').value ? parseInt(document.getElementById('edit-guest-table').value) : null;
+  g.plusGuests = parseInt(document.getElementById('edit-guest-plus-count').value) || 0;
+  g.events     = ['church','engagement','prewedding','wedding'].filter(ev => document.getElementById('edit-ev-' + ev)?.checked);
+  closeModal('modal-edit-guest');
+  renderGuests();
+  scheduleSave();
+}
 
 // ══════════════════════════════════════════════
 //  SEATING — 3 Venues
