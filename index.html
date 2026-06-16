@@ -1901,6 +1901,7 @@ function setWeddingDate(val) {
   document.getElementById('wedding-date-display').textContent = state.weddingDate
     ? state.weddingDate.toLocaleDateString('en-US', opts)
     : 'Set your date →';
+  scheduleSave();
 }
 
 function updateCountdown() {
@@ -3478,7 +3479,7 @@ function renderGuests() {
 
 function updateGuestRSVP(id, rsvp) {
   const g = state.guests.find(x=>x.id===id);
-  if (g) { g.rsvp = rsvp; renderGuests(); }
+  if (g) { g.rsvp = rsvp; renderGuests(); scheduleSave(); }
 }
 
 
@@ -3501,8 +3502,9 @@ function addGuest() {
   document.getElementById('guest-plus-count').value = '0';
   evKeys.forEach(k => { const el = document.getElementById('ev-'+k); if(el) el.checked = false; });
   renderGuests();
+  scheduleSave();
 }
-function deleteGuest(id) { state.guests = state.guests.filter(g=>g.id!==id); renderGuests(); }
+function deleteGuest(id) { state.guests = state.guests.filter(g=>g.id!==id); renderGuests(); scheduleSave(); }
 
 // ══════════════════════════════════════════════
 //  SEATING — 3 Venues
@@ -4678,6 +4680,8 @@ function loadFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const saved = JSON.parse(raw);
+    // Rehydrate weddingDate string → Date object
+    if (saved.weddingDate) saved.weddingDate = new Date(saved.weddingDate);
     // Merge saved data into state (preserves any keys not in saved)
     Object.assign(state, saved);
     return true;
@@ -4762,6 +4766,17 @@ function clearAllData() {
 //  INIT
 // ══════════════════════════════════════════════
 loadFromStorage();
+// After load, sync weddingDate display and the date input field
+if (state.weddingDate) {
+  const opts = { year:'numeric', month:'long', day:'numeric' };
+  const dispEl = document.getElementById('wedding-date-display');
+  if (dispEl) dispEl.textContent = state.weddingDate.toLocaleDateString('en-US', opts);
+  const inp = document.getElementById('wedding-date-input');
+  if (inp) {
+    const d = state.weddingDate;
+    inp.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+}
 renderDashboard();
 
 // ── FIRST-RUN: prompt to set wedding date ──
