@@ -642,6 +642,8 @@
       </div>
       <button class="btn btn-primary" onclick="openModal('modal-add-vendor')">+ Add Vendor</button>
     </div>
+    <!-- Budget Simulator -->
+    <div id="vendor-simulator-wrap"></div>
     <!-- Category filter tabs -->
     <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden;">
       <div id="vendor-cat-tabs" style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);"></div>
@@ -2555,6 +2557,7 @@ const VENDOR_CATS = ['All','EO / Coordinator','Photography','Videography','Hair 
 let vendorActiveCat = 'All';
 
 function renderVendors() {
+  renderBudgetSimulator();
   const tabBar = document.getElementById('vendor-cat-tabs');
   if (tabBar) {
     tabBar.innerHTML = VENDOR_CATS.map(cat => {
@@ -2611,11 +2614,289 @@ function renderVendors() {
           <div style="font-size:11px;color:var(--muted);">${contact.role||''}</div></div>
         </div>`:''}
         ${v.notes?`<div style="font-size:12px;color:var(--muted);font-family:'Raleway',sans-serif;border-top:1px solid var(--border);padding-top:8px;margin-bottom:8px;">${v.notes}</div>`:''}
+        <!-- Package Tiers -->
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-family:'Raleway',sans-serif;font-weight:600;">Price Packages</span>
+            <button onclick="addVendorPackage(${v.id})"
+              style="font-size:10px;padding:3px 10px;border:1px dashed var(--blue);border-radius:8px;background:transparent;color:var(--blue);cursor:pointer;font-family:'Raleway',sans-serif;font-weight:600;">
+              + Add Package
+            </button>
+          </div>
+          ${(v.packages||[]).length === 0
+            ? `<div style="font-size:11px;color:var(--muted);font-family:'Raleway',sans-serif;font-style:italic;">No packages yet — click "+ Add Package" to add price tiers</div>`
+            : (v.packages||[]).map(pkg => {
+                const isSelected = vendorSim[v.category] && vendorSim[v.category].vendorId === v.id && vendorSim[v.category].pkgId === pkg.id;
+                return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding:6px 8px;border-radius:8px;background:${isSelected?'#e8f5e9':'var(--ivory)'};border:1px solid ${isSelected?'var(--success)':'var(--border)'};">
+                  <input type="text" value="${(pkg.name||'').replace(/"/g,'&quot;')}" placeholder="e.g. Full Package, Basic, Premium..."
+                    style="flex:1;min-width:80px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-family:'Raleway',sans-serif;font-size:11px;"
+                    onchange="updateVendorPackage(${v.id},${pkg.id},'name',this.value)">
+                  <input type="number" value="${pkg.price||0}" min="0" step="500000" placeholder="Price"
+                    style="width:110px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-family:'Raleway',sans-serif;font-size:11px;"
+                    onchange="updateVendorPackage(${v.id},${pkg.id},'price',this.value)">
+                  <input type="text" value="${(pkg.notes||'').replace(/"/g,'&quot;')}" placeholder="Notes / inclusions..."
+                    style="flex:1;min-width:80px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-family:'Raleway',sans-serif;font-size:11px;"
+                    onchange="updateVendorPackage(${v.id},${pkg.id},'notes',this.value)">
+                  <button onclick="toggleSimPackage(${v.id},${pkg.id})"
+                    title="Add to Budget Simulator"
+                    style="padding:4px 8px;border-radius:8px;border:1px solid ${isSelected?'var(--success)':'var(--border)'};background:${isSelected?'var(--success)':'transparent'};color:${isSelected?'#fff':'var(--muted)'};cursor:pointer;font-size:11px;white-space:nowrap;">
+                    ${isSelected?'✅':'＋ Sim'}
+                  </button>
+                  <button onclick="deleteVendorPackage(${v.id},${pkg.id})"
+                    style="padding:4px 7px;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:13px;">✕</button>
+                </div>`;
+              }).join('')
+          }
+        </div>
       </div>
     </div>`;
   }).join('')}</div>`;
 }
 function setVendorCat(cat) { vendorActiveCat = cat; renderVendors(); }
+
+// ══════════════════════════════════════════════
+//  VENDOR PACKAGES (price tiers per vendor)
+// ══════════════════════════════════════════════
+// vendorSim tracks selected package per category: { categoryName: { vendorId, pkgId, price, label } }
+let vendorSim = {};
+
+function addVendorPackage(vendorId) {
+  const v = state.vendors.find(x => x.id === vendorId);
+  if (!v) return;
+  if (!v.packages) v.packages = [];
+  v.packages.push({ id: Date.now() + Math.random(), name: '', price: 0, notes: '' });
+  renderVendors();
+  scheduleSave();
+}
+
+function updateVendorPackage(vendorId, pkgId, field, val) {
+  const v = state.vendors.find(x => x.id === vendorId);
+  if (!v || !v.packages) return;
+  const pkg = v.packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  pkg[field] = field === 'price' ? (parseFloat(val) || 0) : val;
+  // Update simulator if this package is currently selected
+  Object.keys(vendorSim).forEach(cat => {
+    if (vendorSim[cat] && vendorSim[cat].vendorId === vendorId && vendorSim[cat].pkgId === pkgId) {
+      vendorSim[cat].price = parseFloat(pkg.price) || 0;
+      vendorSim[cat].label = pkg.name || 'Package';
+    }
+  });
+  renderBudgetSimulator();
+  scheduleSave();
+}
+
+function deleteVendorPackage(vendorId, pkgId) {
+  const v = state.vendors.find(x => x.id === vendorId);
+  if (!v || !v.packages) return;
+  // Deselect if selected
+  Object.keys(vendorSim).forEach(cat => {
+    if (vendorSim[cat] && vendorSim[cat].vendorId === vendorId && vendorSim[cat].pkgId === pkgId)
+      delete vendorSim[cat];
+  });
+  v.packages = v.packages.filter(p => p.id !== pkgId);
+  renderVendors();
+  scheduleSave();
+}
+
+function toggleSimPackage(vendorId, pkgId) {
+  const v = state.vendors.find(x => x.id === vendorId);
+  if (!v) return;
+  const pkg = v.packages?.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const cat = v.category;
+  // If already selected — deselect
+  if (vendorSim[cat] && vendorSim[cat].vendorId === vendorId && vendorSim[cat].pkgId === pkgId) {
+    delete vendorSim[cat];
+  } else {
+    // Select (replaces any previous selection in this category)
+    vendorSim[cat] = { vendorId, pkgId, vendorName: v.name, label: pkg.name || 'Package', price: parseFloat(pkg.price) || 0 };
+  }
+  renderBudgetSimulator();
+  renderVendors();
+}
+
+function assignSimToEvent(cat, evKey) {
+  const sim = vendorSim[cat];
+  if (!sim) return;
+  const ev = state.eventData[evKey];
+  if (!ev) return;
+  // If vendor already in this event's quotes, do nothing (toggle off not supported to avoid accidental removal)
+  const alreadyHas = ev.quotes.some(q => q.vendorId === sim.vendorId);
+  if (alreadyHas) {
+    // Already assigned — show brief feedback by re-rendering (button turns green)
+    renderBudgetSimulator();
+    return;
+  }
+  // Add vendor as a quote line to the event
+  const newQuote = {
+    id: Date.now() + Math.random(),
+    vendorId: sim.vendorId,
+    itemName: sim.label || '',
+    price: sim.price || 0,
+    inclusions: '',
+    notes: `Simulated: ${sim.label || 'Package'}`,
+    paymentTerms: '',
+    selected: false,
+    confirmed: false
+  };
+  ev.quotes.push(newQuote);
+  scheduleSave();
+  renderBudgetSimulator();
+  // Show a brief toast-style confirmation
+  const wrap = document.getElementById('vendor-simulator-wrap');
+  if (wrap) {
+    const toast = document.createElement('div');
+    const evLabels = {church:'Church',engagement:'Engagement',prewedding:'Pre-Wedding',wedding:'Wedding'};
+    toast.textContent = `✓ ${sim.vendorName} added to ${evLabels[evKey] || evKey}`;
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:10px 20px;border-radius:20px;font-family:Raleway,sans-serif;font-size:13px;font-weight:600;z-index:9999;transition:opacity .4s;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 2000);
+  }
+}
+
+function renderBudgetSimulator() {
+  const el = document.getElementById('vendor-simulator-wrap');
+  if (!el) return;
+
+  const selectedCats = Object.keys(vendorSim);
+  const total = selectedCats.reduce((s, cat) => s + (vendorSim[cat]?.price || 0), 0);
+  const hasAny = selectedCats.length > 0;
+
+  // Group all vendors with packages by category
+  const catsWithPkgs = {};
+  state.vendors.forEach(v => {
+    if (v.packages && v.packages.length > 0) {
+      if (!catsWithPkgs[v.category]) catsWithPkgs[v.category] = [];
+      catsWithPkgs[v.category].push(v);
+    }
+  });
+  const hasPkgs = Object.keys(catsWithPkgs).length > 0;
+
+  if (!hasPkgs) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;border:2px dashed var(--border);">
+      <div class="card-body" style="padding:18px 20px;text-align:center;color:var(--muted);font-family:'Raleway',sans-serif;font-size:13px;">
+        <div style="font-size:22px;margin-bottom:6px;">💰</div>
+        <strong style="color:var(--navy);">Budget Simulator</strong><br>
+        Add price packages to your vendors below to use the simulator. Click <strong>"+ Add Package"</strong> on any vendor card to start.
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Build category comparison rows
+  const catRows = Object.entries(catsWithPkgs).map(([cat, vendors]) => {
+    const sel = vendorSim[cat];
+    const pkgRows = vendors.map(v => {
+      return v.packages.map(pkg => {
+        const isSelected = sel && sel.vendorId === v.id && sel.pkgId === pkg.id;
+        return `<tr style="${isSelected ? 'background:#e8f5e9;' : ''}">
+          <td style="padding:7px 12px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:600;color:var(--navy);">${v.name}</td>
+          <td style="padding:7px 12px;font-family:'Raleway',sans-serif;font-size:12px;color:var(--muted);">${pkg.name || '—'}</td>
+          <td style="padding:7px 12px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;color:var(--navy);text-align:right;">${fmtRp(parseFloat(pkg.price)||0)}</td>
+          <td style="padding:7px 12px;">${pkg.notes ? `<span style="font-size:11px;color:var(--muted);">${pkg.notes}</span>` : ''}</td>
+          <td style="padding:7px 12px;text-align:center;">
+            <button onclick="toggleSimPackage(${v.id},${pkg.id})"
+              style="padding:4px 14px;border-radius:20px;border:2px solid ${isSelected ? 'var(--success)' : 'var(--border)'};
+                     background:${isSelected ? 'var(--success)' : 'transparent'};color:${isSelected ? '#fff' : 'var(--muted)'};
+                     font-family:'Raleway',sans-serif;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">
+              ${isSelected ? '✅ Selected' : 'Select'}
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }).join('');
+
+    const catTotal = sel ? fmtRp(sel.price) : '—';
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--navy);border-radius:8px 8px 0 0;">
+        <span style="font-family:'Raleway',sans-serif;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">${cat}</span>
+        ${sel ? `<span style="font-size:11px;color:#a8efb0;margin-left:auto;">✅ ${sel.vendorName} · ${catTotal}</span>` : `<span style="font-size:11px;color:rgba(255,255,255,.4);margin-left:auto;">No selection</span>`}
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;">
+        <table style="width:100%;border-collapse:collapse;min-width:500px;">
+          <thead><tr style="background:var(--ivory);">
+            <th style="padding:6px 12px;font-family:'Raleway',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:left;">Vendor</th>
+            <th style="padding:6px 12px;font-family:'Raleway',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:left;">Package</th>
+            <th style="padding:6px 12px;font-family:'Raleway',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:right;">Price</th>
+            <th style="padding:6px 12px;font-family:'Raleway',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Notes</th>
+            <th style="padding:6px 12px;"></th>
+          </tr></thead>
+          <tbody>${pkgRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card" style="margin-bottom:16px;">
+    <div class="card-header" style="background:var(--navy);border-radius:var(--radius) var(--radius) 0 0;">
+      <div>
+        <div style="color:var(--blue-mid);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:'Raleway',sans-serif;margin-bottom:2px;">Budget Simulator</div>
+        <h3 style="color:#fff;margin:0;">Compare & Estimate Total Cost</h3>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        ${hasAny ? `
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:var(--blue-mid);font-family:'Raleway',sans-serif;">${selectedCats.length} categor${selectedCats.length===1?'y':'ies'} selected</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;font-weight:600;">${fmtRp(total)}</div>
+          </div>
+          <button onclick="vendorSim={};renderBudgetSimulator();renderVendors();"
+            style="padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:'Raleway',sans-serif;font-size:11px;cursor:pointer;">
+            Reset
+          </button>
+        ` : `<span style="font-size:12px;color:rgba(255,255,255,.5);font-family:'Raleway',sans-serif;">Select packages below to estimate total</span>`}
+      </div>
+    </div>
+    <div class="card-body" style="padding:16px 20px;">
+      ${catRows}
+      ${hasAny ? `
+        <div style="border-top:2px solid var(--border);padding-top:14px;margin-top:4px;">
+          <!-- Summary + Grand Total -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+            <div>
+              ${selectedCats.map(cat => `<div style="font-family:'Raleway',sans-serif;font-size:12px;color:var(--muted);line-height:1.8;">
+                <span style="color:var(--navy);font-weight:600;">${cat}:</span> ${vendorSim[cat].vendorName} · ${fmtRp(vendorSim[cat].price)}
+              </div>`).join('')}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:var(--muted);font-family:'Raleway',sans-serif;">Grand Total</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--navy);">${fmtRp(total)}</div>
+            </div>
+          </div>
+          <!-- Assign to Events panel -->
+          <div style="background:var(--ivory);border-radius:10px;padding:16px 18px;">
+            <div style="font-family:'Raleway',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--navy);margin-bottom:12px;">📌 Assign to Events</div>
+            <div style="font-size:12px;color:var(--muted);font-family:'Raleway',sans-serif;margin-bottom:12px;">Select which events should use each simulated vendor. This will add the vendor as a quote line to that event.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+              ${selectedCats.map(cat => {
+                const sim = vendorSim[cat];
+                const evKeys = ['church','engagement','prewedding','wedding'];
+                const evLabels = {church:'⛪ Church',engagement:'🥂 Engagement',prewedding:'📸 Pre-Wedding',wedding:'🌊 Wedding'};
+                const evBtns = evKeys.map(evKey => {
+                  // Check if this vendor already has a quote in this event
+                  const ev = state.eventData[evKey];
+                  const alreadyHas = ev && ev.quotes.some(q => q.vendorId === sim.vendorId);
+                  return `<button onclick="assignSimToEvent('${cat}','${evKey}')"
+                    style="padding:5px 10px;border-radius:14px;border:1.5px solid ${alreadyHas ? 'var(--success)' : 'var(--border)'};
+                           background:${alreadyHas ? '#e8f5e9' : 'transparent'};
+                           color:${alreadyHas ? 'var(--success)' : 'var(--muted)'};
+                           font-family:'Raleway',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">
+                    ${alreadyHas ? '✓' : '+'} ${evLabels[evKey]}
+                  </button>`;
+                }).join('');
+                return `<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;">
+                  <div style="font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">${sim.vendorName}</div>
+                  <div style="font-size:11px;color:var(--muted);font-family:'Raleway',sans-serif;margin-bottom:10px;">${cat} · ${sim.label || 'Package'} · ${fmtRp(sim.price)}</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">${evBtns}</div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  </div>`;
+}
 function addVendor() {
   const linkedEvents = ['church','engagement','prewedding','wedding']
     .filter(ev => document.getElementById('vlink-'+ev)?.checked);
