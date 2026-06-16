@@ -660,11 +660,14 @@
     <div class="card">
       <div class="card-header">
         <h3>Guest List</h3>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <div class="search-wrap">
-            <input type="text" id="guest-search-input" class="search-bar" style="width:180px;" placeholder="Search guests..." oninput="filterGuests(this.value)">
+            <input type="text" id="guest-search-input" class="search-bar" style="width:160px;" placeholder="Search guests..." oninput="filterGuests(this.value)">
           </div>
-          <button id="guest-pdf-btn" class="btn btn-outline btn-sm" onclick="exportGuestPDF(null)" style="white-space:nowrap;">📄 Save PDF</button>
+          <button id="guest-pdf-btn" onclick="exportGuestPDF(_guestEventFilter||null)"
+            style="padding:6px 14px;border-radius:8px;border:1.5px solid var(--navy);background:var(--navy);color:#fff;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            📄 Save PDF
+          </button>
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-guest')">+ Add Guest</button>
         </div>
       </div>
@@ -3627,70 +3630,125 @@ function renderGuestAnalytics() {
 }
 
 function exportGuestPDF(evKey) {
-  const evLabels = {church:'⛪ Church — Surabaya', engagement:'💍 Engagement (Tingjing/Sangjit)', prewedding:'📸 Pre-Wedding Shoot', wedding:'🌊 Wedding Reception — Bali'};
-  const title = evKey ? (evLabels[evKey] || evKey) : 'All Events';
-  const guests = evKey
-    ? state.guests.filter(g => (g.events||[]).includes(evKey))
-    : state.guests;
-
-  if (guests.length === 0) { _showToast('No guests to export', 'var(--muted)'); return; }
-
+  const evDefs = [
+    { key:'church',     label:'Church — Surabaya',          emoji:'⛪' },
+    { key:'engagement', label:'Engagement (Tingjing/Sangjit)', emoji:'💍' },
+    { key:'prewedding', label:'Pre-Wedding Shoot',           emoji:'📸' },
+    { key:'wedding',    label:'Wedding Reception — Bali',    emoji:'🌊' },
+  ];
   const dateStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
 
-  const confirmed  = guests.filter(g => g.rsvp === 'Confirmed');
-  const pending    = guests.filter(g => g.rsvp === 'Pending');
-  const declined   = guests.filter(g => g.rsvp === 'Declined');
-  const totalPax   = guests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
-  const confPax    = confirmed.reduce((s,g)=>s+1+(g.plusGuests||0),0);
+  // Which events to include
+  const eventsToShow = evKey ? evDefs.filter(e => e.key === evKey) : evDefs;
 
-  const rows = guests.map((g,i) => {
-    const pax = 1 + (g.plusGuests||0);
-    const rsvpColor = g.rsvp==='Confirmed'?'#2e7d32':g.rsvp==='Declined'?'#c62828':'#e65100';
-    return `<tr style="background:${i%2===1?'#f9f9f9':'#fff'}">
-      <td style="padding:6px 10px;">${i+1}</td>
-      <td style="padding:6px 10px;font-weight:600;">${g.name}</td>
-      <td style="padding:6px 10px;">${g.side}</td>
-      <td style="padding:6px 10px;text-align:center;">${g.table ? 'Table '+g.table : '—'}</td>
-      <td style="padding:6px 10px;text-align:center;">${g.meal}</td>
-      <td style="padding:6px 10px;text-align:center;font-weight:700;color:${rsvpColor};">${g.rsvp}</td>
-      <td style="padding:6px 10px;text-align:center;">${g.plusGuests>0?'+'+g.plusGuests:'—'}</td>
-      <td style="padding:6px 10px;text-align:center;font-weight:700;">${pax}</td>
-    </tr>`;
+  // Helper: build a side-section table
+  function sideTable(guests, side, startNum) {
+    const sideguests = guests.filter(g => g.side === side || (side === 'Both' && g.side === 'Both'));
+    if (sideguests.length === 0) return '';
+    const sidePax = sideguests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+    const rows = sideguests.map((g, i) => {
+      const pax = 1 + (g.plusGuests||0);
+      const rsvpBg = g.rsvp==='Confirmed'?'#e8f5e9':g.rsvp==='Declined'?'#ffebee':'#fff3e0';
+      const rsvpColor = g.rsvp==='Confirmed'?'#2e7d32':g.rsvp==='Declined'?'#c62828':'#e65100';
+      return `<tr>
+        <td style="padding:6px 10px;color:#888;">${startNum + i}</td>
+        <td style="padding:6px 10px;font-weight:600;color:#1a2e44;">${g.name}</td>
+        <td style="padding:6px 10px;text-align:center;">${g.table ? 'Table ' + g.table : '—'}</td>
+        <td style="padding:6px 10px;text-align:center;color:#555;">${g.meal}</td>
+        <td style="padding:6px 10px;text-align:center;">
+          <span style="background:${rsvpBg};color:${rsvpColor};padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;">${g.rsvp}</span>
+        </td>
+        <td style="padding:6px 10px;text-align:center;color:#555;">${g.plusGuests > 0 ? '+' + g.plusGuests : '—'}</td>
+        <td style="padding:6px 10px;text-align:center;font-weight:700;color:#1a2e44;">${g.rsvp !== 'Declined' ? pax : '<span style="color:#bbb;">—</span>'}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#888;margin:12px 0 6px;">${side} Side &nbsp;·&nbsp; ${sideguests.length} group${sideguests.length!==1?'s':''} &nbsp;·&nbsp; ${sidePax} pax</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
+        <thead><tr style="background:#f0f0f0;">
+          <th style="padding:5px 10px;text-align:left;color:#555;font-weight:600;">#</th>
+          <th style="padding:5px 10px;text-align:left;color:#555;font-weight:600;">Name</th>
+          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Table</th>
+          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Meal</th>
+          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Status</th>
+          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">+Guests</th>
+          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Pax</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // Build event sections
+  let allGuestsForSummary = evKey ? state.guests.filter(g=>(g.events||[]).includes(evKey)) : state.guests;
+  if (allGuestsForSummary.length === 0) { _showToast('No guests to export', 'var(--muted)'); return; }
+
+  const totalPax  = allGuestsForSummary.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+  const confCount = allGuestsForSummary.filter(g=>g.rsvp==='Confirmed').length;
+  const pendCount = allGuestsForSummary.filter(g=>g.rsvp==='Pending').length;
+  const declCount = allGuestsForSummary.filter(g=>g.rsvp==='Declined').length;
+  const confPax   = allGuestsForSummary.filter(g=>g.rsvp==='Confirmed').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+
+  const eventSections = eventsToShow.map(ev => {
+    const evGuests = state.guests.filter(g => (g.events||[]).includes(ev.key));
+    if (evGuests.length === 0) return '';
+    const evPax = evGuests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+    const evConf = evGuests.filter(g=>g.rsvp==='Confirmed').length;
+    const evPend = evGuests.filter(g=>g.rsvp==='Pending').length;
+    const evDecl = evGuests.filter(g=>g.rsvp==='Declined').length;
+
+    const brideGuests = evGuests.filter(g => g.side === 'Bride');
+    const groomGuests = evGuests.filter(g => g.side === 'Groom');
+    const bothGuests  = evGuests.filter(g => g.side === 'Both');
+
+    return `
+      <div style="margin-top:28px;page-break-inside:avoid;">
+        <div style="background:#1a2e44;color:#fff;padding:10px 16px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:15px;font-weight:700;">${ev.emoji} ${ev.label}</div>
+          <div style="font-size:12px;opacity:.8;">${evGuests.length} groups &nbsp;·&nbsp; ${evPax} pax</div>
+        </div>
+        <div style="background:#f8f9fa;padding:8px 16px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 6px 6px;display:flex;gap:20px;font-size:11px;color:#555;margin-bottom:8px;">
+          <span>✓ Confirmed: <strong style="color:#2e7d32">${evConf}</strong></span>
+          <span>⏳ Pending: <strong style="color:#e65100">${evPend}</strong></span>
+          <span>✗ Declined: <strong style="color:#c62828">${evDecl}</strong></span>
+          <span>👰 Bride: <strong>${brideGuests.length}</strong></span>
+          <span>🤵 Groom: <strong>${groomGuests.length}</strong></span>
+        </div>
+        ${brideGuests.length > 0 ? sideTable(evGuests, 'Bride', 1) : ''}
+        ${groomGuests.length > 0 ? sideTable(evGuests, 'Groom', brideGuests.length + 1) : ''}
+        ${bothGuests.length  > 0 ? sideTable(evGuests, 'Both',  brideGuests.length + groomGuests.length + 1) : ''}
+      </div>`;
   }).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Guest List — ${title}</title>
+    <title>Guest List — Giorgio & Grace</title>
     <style>
-      body{font-family:'Georgia',serif;margin:32px;color:#1a2e44;}
-      h1{font-size:22px;margin:0 0 4px;}
-      .sub{font-size:12px;color:#888;margin-bottom:18px;}
-      .summary{display:flex;gap:24px;margin-bottom:18px;padding:12px 16px;background:#f0f4ff;border-radius:8px;font-size:12px;}
-      .summary strong{font-size:18px;display:block;}
-      table{width:100%;border-collapse:collapse;font-size:12px;}
-      th{background:#1a2e44;color:#fff;padding:7px 10px;text-align:left;}
-      td{border-bottom:1px solid #eee;}
-      @media print{body{margin:16px;}}
+      body { font-family: 'Georgia', serif; margin: 36px; color: #1a2e44; font-size: 13px; }
+      h1 { font-size: 26px; margin: 0 0 2px; letter-spacing: -0.5px; }
+      h2 { font-size: 13px; font-weight: 400; color: #888; margin: 0 0 20px; }
+      .summary-box { display: flex; gap: 0; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+      .summary-cell { flex: 1; padding: 12px 16px; text-align: center; border-right: 1px solid #ddd; }
+      .summary-cell:last-child { border-right: none; }
+      .summary-cell .num { font-size: 24px; font-weight: 700; font-family: 'Georgia', serif; color: #1a2e44; }
+      .summary-cell .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-top: 2px; }
+      @media print { body { margin: 18px; } .no-break { page-break-inside: avoid; } }
     </style>
   </head><body>
-    <h1>💍 Giorgio & Grace — Guest List</h1>
-    <div class="sub">${title} &nbsp;|&nbsp; Generated: ${dateStr}</div>
-    <div class="summary">
-      <div><strong>${guests.length}</strong>Guest Groups</div>
-      <div><strong>${totalPax}</strong>Total Pax (excl. declined)</div>
-      <div><strong style="color:#2e7d32">${confirmed.length}</strong>Confirmed (${confPax} pax)</div>
-      <div><strong style="color:#e65100">${pending.length}</strong>Pending</div>
-      <div><strong style="color:#c62828">${declined.length}</strong>Declined</div>
+    <h1>💍 Giorgio & Grace</h1>
+    <h2>Wedding Guest List &nbsp;·&nbsp; ${evKey ? eventsToShow[0]?.emoji + ' ' + eventsToShow[0]?.label : 'All Events'} &nbsp;·&nbsp; ${dateStr}</h2>
+
+    <div class="summary-box">
+      <div class="summary-cell"><div class="num">${allGuestsForSummary.length}</div><div class="lbl">Total Groups</div></div>
+      <div class="summary-cell"><div class="num">${totalPax}</div><div class="lbl">Total Pax</div></div>
+      <div class="summary-cell"><div class="num" style="color:#2e7d32">${confCount}</div><div class="lbl">Confirmed (${confPax} pax)</div></div>
+      <div class="summary-cell"><div class="num" style="color:#e65100">${pendCount}</div><div class="lbl">Pending</div></div>
+      <div class="summary-cell"><div class="num" style="color:#c62828">${declCount}</div><div class="lbl">Declined</div></div>
     </div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>Name</th><th>Side</th><th>Table</th><th>Meal</th><th>RSVP</th><th>+Guests</th><th>Pax</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+
+    ${eventSections}
     <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank', 'width=900,height=700');
+  const win = window.open('', '_blank', 'width=960,height=760');
   win.document.write(html);
   win.document.close();
 }
