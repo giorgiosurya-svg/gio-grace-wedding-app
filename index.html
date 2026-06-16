@@ -1233,11 +1233,17 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Phone</label><input type="text" id="vendor-phone" placeholder="+62 ..."></div>
-        <div class="form-group"><label>Email</label><input type="text" id="vendor-email" placeholder="email@..."></div>
+        <div class="form-group" style="flex:2;"><label>PIC / Contact Person <span style="font-weight:400;color:var(--muted);font-size:11px;">(person's name)</span></label><input type="text" id="vendor-contact-person" placeholder="e.g. Budi Santoso"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Phone</label><input type="text" id="vendor-phone" placeholder="+62 ..."></div>
+        <div class="form-group"><label>WhatsApp</label><input type="text" id="vendor-whatsapp" placeholder="+62 ..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="text" id="vendor-email" placeholder="email@..."></div>
         <div class="form-group"><label>Instagram</label><input type="text" id="vendor-instagram" placeholder="@handle"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Website</label><input type="text" id="vendor-website" placeholder="https://..."></div>
       </div>
       <div class="form-group"><label>Notes / Terms</label><input type="text" id="vendor-notes" placeholder="e.g. Confirmed, Range Rp18-20 juta, etc."></div>
@@ -1278,11 +1284,17 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Phone</label><input type="text" id="edit-vendor-phone"></div>
-        <div class="form-group"><label>Email</label><input type="text" id="edit-vendor-email"></div>
+        <div class="form-group" style="flex:2;"><label>PIC / Contact Person</label><input type="text" id="edit-vendor-contact-person" placeholder="e.g. Budi Santoso"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Phone</label><input type="text" id="edit-vendor-phone"></div>
+        <div class="form-group"><label>WhatsApp</label><input type="text" id="edit-vendor-whatsapp"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="text" id="edit-vendor-email"></div>
         <div class="form-group"><label>Instagram</label><input type="text" id="edit-vendor-instagram"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Website</label><input type="text" id="edit-vendor-website"></div>
       </div>
       <div class="form-group"><label>Notes / Terms</label><input type="text" id="edit-vendor-notes"></div>
@@ -1752,31 +1764,25 @@ const state = {
   ],
 
   // ── CONTACTS (master data — CRM) ──
-  contacts: [
-    { id:1, name:'Candy Sachi',    role:'Lead MUA',           company:'Candy Sachi Studio',   phone:'+62 821-0000-0001', email:'',                  whatsapp:'+62 821-0000-0001', instagram:'@candysachi',   notes:'Confirmed. Range Rp18–20 juta.' },
-    { id:2, name:'Prince',         role:'Event Organizer',    company:'Prince EO',             phone:'+62 812-0000-0002', email:'',                  whatsapp:'+62 812-0000-0002', instagram:'@princeevent', notes:'EO utama. Koordinir jazz orchestra.' },
-    { id:3, name:'Alex Tan',       role:'Sales Venue',        company:'Sheraton Surabaya',     phone:'+62 31-xxx-xxxx',   email:'alex@sheraton.com', whatsapp:'',                  instagram:'',              notes:'Contact for Surabaya venue inquiry.' },
-    { id:4, name:'Budi Santoso',   role:'Fotografer',         company:'Budi Photo Studio',     phone:'+62 813-0000-0004', email:'',                  whatsapp:'+62 813-0000-0004', instagram:'@budiphoto',    notes:'Portfolio dikunjungi.' },
-    { id:5, name:'Tim Clarity',    role:'Photobooth Operator',company:'Clarity Photo',         phone:'+62 811-0000-0005', email:'',                  whatsapp:'',                  instagram:'@clarityphoto', notes:'Photobooth package confirmed.' },
-  ],
+  contacts: [],   // standalone non-vendor contacts (venue sales, coordinators, etc.)
 
   // ── VENDORS (master data — no price; price entered per-event in calculation) ──
   vendors: [
-    { id:1,  name:'Candy Sachi Studio',       category:'Hair & Makeup',        contactId:1, phone:'+62 821-0000-0001', email:'', instagram:'@candysachi',   website:'',  notes:'Range Rp18–20 juta. Confirmed for both Church & Wedding.', contractUrl:'', active:true, linkedEvents:['church','wedding','prewedding'] },
-    { id:2,  name:'Wong Hang / Behien',        category:'Attire',               contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Jas pengantin pria + sepatu. Confirmed.', contractUrl:'', active:true, linkedEvents:['church','wedding'] },
-    { id:3,  name:'Clarity Photobooth',        category:'Photography',          contactId:5, phone:'+62 811-0000-0005', email:'', instagram:'@clarityphoto', website:'',  notes:'Photobooth only — confirmed.', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:4,  name:'Prince EO',                 category:'EO / Coordinator',     contactId:2, phone:'+62 812-0000-0002', email:'', instagram:'@princeevent',  website:'',  notes:'Main EO. Coordinates all vendors.', contractUrl:'', active:true, linkedEvents:['church','engagement','wedding'] },
-    { id:5,  name:'TBD — Fotografer Resepsi',  category:'Photography',          contactId:4, phone:'+62 813-0000-0004', email:'', instagram:'@budiphoto',    website:'',  notes:'Belum confirmed. Survey ongoing.', contractUrl:'', active:true, linkedEvents:[] },
-    { id:6,  name:'TBD — Videografer + SDE',   category:'Videography',          contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Videografer + Same Day Edit.', contractUrl:'', active:true, linkedEvents:[] },
-    { id:7,  name:'TBD — Venue Bali',          category:'Venue',                contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Sedang survey venue Bali.', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:8,  name:'TBD — Jazz Orchestra',      category:'Music / Entertainment',contactId:2, phone:'',               email:'', instagram:'',              website:'',  notes:'5–6 pax, koordinasi Prince EO.', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:9,  name:'TBD — Wedding Gown',        category:'Attire',               contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Belum dipilih desainer.', contractUrl:'', active:true, linkedEvents:[] },
-    { id:10, name:'TBD — Florals Resepsi',     category:'Florals & Decor',      contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Italian coastal garden theme. Est. Rp40 juta.', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:11, name:'TBD — MC',                  category:'MC',                   contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:12, name:'TBD — Wedding Rings',       category:'Jewellery',            contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:[] },
-    { id:13, name:'TBD — Wedding Cake',        category:'Cake',                 contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'Italian style. Confirmed quote Rp5 juta.', contractUrl:'', active:true, linkedEvents:['wedding'] },
-    { id:14, name:'TBD — Catering Gereja',     category:'Catering',             contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'~1.000 pax Surabaya. Est Rp30 juta.', contractUrl:'', active:true, linkedEvents:['church'] },
-    { id:15, name:'TBD — Invitation & Print',  category:'Stationery',           contactId:null, phone:'',             email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:[] },
+    { id:1,  name:'Candy Sachi Studio',       category:'Hair & Makeup',        contactPerson:'Candy Sachi',  whatsapp:'+62 821-0000-0001', phone:'+62 821-0000-0001', email:'', instagram:'@candysachi',   website:'',  notes:'Range Rp18–20 juta. Confirmed for both Church & Wedding.', contractUrl:'', active:true, linkedEvents:['church','wedding','prewedding'] },
+    { id:2,  name:'Wong Hang / Behien',        category:'Attire',               contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Jas pengantin pria + sepatu. Confirmed.', contractUrl:'', active:true, linkedEvents:['church','wedding'] },
+    { id:3,  name:'Clarity Photobooth',        category:'Photography',          contactPerson:'Tim Clarity',  whatsapp:'',                  phone:'+62 811-0000-0005', email:'', instagram:'@clarityphoto', website:'',  notes:'Photobooth only — confirmed.', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:4,  name:'Prince EO',                 category:'EO / Coordinator',     contactPerson:'Prince',       whatsapp:'+62 812-0000-0002', phone:'+62 812-0000-0002', email:'', instagram:'@princeevent',  website:'',  notes:'Main EO. Coordinates all vendors.', contractUrl:'', active:true, linkedEvents:['church','engagement','wedding'] },
+    { id:5,  name:'TBD — Fotografer Resepsi',  category:'Photography',          contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Belum confirmed. Survey ongoing.', contractUrl:'', active:true, linkedEvents:[] },
+    { id:6,  name:'TBD — Videografer + SDE',   category:'Videography',          contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Videografer + Same Day Edit.', contractUrl:'', active:true, linkedEvents:[] },
+    { id:7,  name:'TBD — Venue Bali',          category:'Venue',                contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Sedang survey venue Bali.', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:8,  name:'TBD — Jazz Orchestra',      category:'Music / Entertainment',contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'5–6 pax, koordinasi Prince EO.', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:9,  name:'TBD — Wedding Gown',        category:'Attire',               contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Belum dipilih desainer.', contractUrl:'', active:true, linkedEvents:[] },
+    { id:10, name:'TBD — Florals Resepsi',     category:'Florals & Decor',      contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Italian coastal garden theme. Est. Rp40 juta.', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:11, name:'TBD — MC',                  category:'MC',                   contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:12, name:'TBD — Wedding Rings',       category:'Jewellery',            contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:[] },
+    { id:13, name:'TBD — Wedding Cake',        category:'Cake',                 contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'Italian style. Confirmed quote Rp5 juta.', contractUrl:'', active:true, linkedEvents:['wedding'] },
+    { id:14, name:'TBD — Catering Gereja',     category:'Catering',             contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'~1.000 pax Surabaya. Est Rp30 juta.', contractUrl:'', active:true, linkedEvents:['church'] },
+    { id:15, name:'TBD — Invitation & Print',  category:'Stationery',           contactPerson:'',             whatsapp:'',                  phone:'',                  email:'', instagram:'',              website:'',  notes:'', contractUrl:'', active:true, linkedEvents:[] },
   ],
 
   // ── EVENT DATA (calculation workspace per event — vendor quotes entered here) ──
@@ -3154,15 +3160,16 @@ function addVendor() {
     .filter(ev => document.getElementById('vlink-'+ev)?.checked);
   const v = {
     id: Date.now(),
-    name: document.getElementById('vendor-name').value || 'New Vendor',
-    category: document.getElementById('vendor-category').value,
-    contactId: null,
-    phone: document.getElementById('vendor-phone').value,
-    email: document.getElementById('vendor-email').value,
-    instagram: document.getElementById('vendor-instagram').value,
-    website: document.getElementById('vendor-website').value,
-    notes: document.getElementById('vendor-notes').value,
-    contractUrl: document.getElementById('vendor-contract-url').value,
+    name:          document.getElementById('vendor-name').value || 'New Vendor',
+    category:      document.getElementById('vendor-category').value,
+    contactPerson: document.getElementById('vendor-contact-person').value,
+    phone:         document.getElementById('vendor-phone').value,
+    whatsapp:      document.getElementById('vendor-whatsapp').value,
+    email:         document.getElementById('vendor-email').value,
+    instagram:     document.getElementById('vendor-instagram').value,
+    website:       document.getElementById('vendor-website').value,
+    notes:         document.getElementById('vendor-notes').value,
+    contractUrl:   document.getElementById('vendor-contract-url').value,
     active: true,
     linkedEvents,
   };
@@ -3174,7 +3181,7 @@ function addVendor() {
       ev.quotes.push({ id: Date.now() + Math.random(), vendorId: v.id, price: 0, inclusions: '', notes: '', selected: false, confirmed: false });
   });
   closeModal('modal-add-vendor');
-  ['vendor-name','vendor-phone','vendor-email','vendor-instagram','vendor-website','vendor-notes','vendor-contract-url'].forEach(id => {
+  ['vendor-name','vendor-contact-person','vendor-phone','vendor-whatsapp','vendor-email','vendor-instagram','vendor-website','vendor-notes','vendor-contract-url'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   ['vlink-church','vlink-engagement','vlink-prewedding','vlink-wedding'].forEach(id => {
@@ -3186,15 +3193,17 @@ function addVendor() {
 function openEditVendor(id) {
   const v = state.vendors.find(x => x.id === id);
   if (!v) return;
-  document.getElementById('edit-vendor-id').value          = v.id;
-  document.getElementById('edit-vendor-name').value        = v.name;
-  document.getElementById('edit-vendor-category').value    = v.category;
-  document.getElementById('edit-vendor-phone').value       = v.phone || '';
-  document.getElementById('edit-vendor-email').value       = v.email || '';
-  document.getElementById('edit-vendor-instagram').value   = v.instagram || '';
-  document.getElementById('edit-vendor-website').value     = v.website || '';
-  document.getElementById('edit-vendor-notes').value       = v.notes || '';
-  document.getElementById('edit-vendor-contract-url').value= v.contractUrl || '';
+  document.getElementById('edit-vendor-id').value             = v.id;
+  document.getElementById('edit-vendor-name').value           = v.name;
+  document.getElementById('edit-vendor-category').value       = v.category;
+  document.getElementById('edit-vendor-contact-person').value = v.contactPerson || '';
+  document.getElementById('edit-vendor-phone').value          = v.phone || '';
+  document.getElementById('edit-vendor-whatsapp').value       = v.whatsapp || '';
+  document.getElementById('edit-vendor-email').value          = v.email || '';
+  document.getElementById('edit-vendor-instagram').value      = v.instagram || '';
+  document.getElementById('edit-vendor-website').value        = v.website || '';
+  document.getElementById('edit-vendor-notes').value          = v.notes || '';
+  document.getElementById('edit-vendor-contract-url').value   = v.contractUrl || '';
   ['church','engagement','prewedding','wedding'].forEach(ev => {
     const cb = document.getElementById('edit-vlink-' + ev);
     if (cb) cb.checked = Array.isArray(v.linkedEvents) && v.linkedEvents.includes(ev);
@@ -3221,15 +3230,17 @@ function saveEditVendor() {
     if (ev) ev.quotes = ev.quotes.filter(q => q.vendorId !== id || q.price > 0 || q.selected || q.confirmed);
   });
   Object.assign(v, {
-    name:        document.getElementById('edit-vendor-name').value || v.name,
-    category:    document.getElementById('edit-vendor-category').value,
-    phone:       document.getElementById('edit-vendor-phone').value,
-    email:       document.getElementById('edit-vendor-email').value,
-    instagram:   document.getElementById('edit-vendor-instagram').value,
-    website:     document.getElementById('edit-vendor-website').value,
-    notes:       document.getElementById('edit-vendor-notes').value,
-    contractUrl: document.getElementById('edit-vendor-contract-url').value,
-    linkedEvents: newLinkedEvents,
+    name:          document.getElementById('edit-vendor-name').value || v.name,
+    category:      document.getElementById('edit-vendor-category').value,
+    contactPerson: document.getElementById('edit-vendor-contact-person').value,
+    phone:         document.getElementById('edit-vendor-phone').value,
+    whatsapp:      document.getElementById('edit-vendor-whatsapp').value,
+    email:         document.getElementById('edit-vendor-email').value,
+    instagram:     document.getElementById('edit-vendor-instagram').value,
+    website:       document.getElementById('edit-vendor-website').value,
+    notes:         document.getElementById('edit-vendor-notes').value,
+    contractUrl:   document.getElementById('edit-vendor-contract-url').value,
+    linkedEvents:  newLinkedEvents,
   });
   closeModal('modal-edit-vendor');
   renderVendors();
