@@ -615,17 +615,20 @@
       <div>
         <div style="color:var(--blue-mid);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-family:'Raleway',sans-serif;margin-bottom:4px;">Master Data</div>
         <h2 style="color:#fff;margin:0;font-size:20px;">Contact Directory</h2>
-        <p style="color:var(--muted);margin:4px 0 0;font-family:'Raleway',sans-serif;font-size:13px;">All vendor contacts, venue sales, and key people linked to this wedding.</p>
+        <p style="color:var(--muted);margin:4px 0 0;font-family:'Raleway',sans-serif;font-size:13px;">Auto-synced from Vendors. Add standalone contacts (venue sales, coordinators) below.</p>
       </div>
-      <button class="btn btn-primary" onclick="openModal('modal-add-contact')">+ Add Contact</button>
+      <div style="display:flex;gap:8px;">
+        <div class="search-wrap"><input type="text" class="search-bar" style="width:160px;" placeholder="Search…" oninput="filterContacts(this.value)"></div>
+        <button class="btn btn-primary" onclick="openModal('modal-add-contact')">+ Add Contact</button>
+      </div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <h3>All Contacts</h3>
+      <div class="card-header" style="padding:10px 16px;">
+        <h3 style="font-size:14px;">All Contacts <span id="contacts-count" style="font-size:12px;color:var(--muted);font-weight:400;"></span></h3>
       </div>
       <div class="card-body" style="padding:0;">
         <table>
-          <thead><tr><th>Name</th><th>Role / Company</th><th>Phone</th><th>WhatsApp</th><th>Instagram</th><th>Notes</th><th>Vendor</th><th></th></tr></thead>
+          <thead><tr><th>Name / PIC</th><th>Category / Role</th><th>Phone</th><th>WhatsApp</th><th>Instagram</th><th>Notes</th><th>Type</th><th></th></tr></thead>
           <tbody id="contacts-tbody"></tbody>
         </table>
       </div>
@@ -2613,28 +2616,63 @@ function pushExpenseToPayment(expId) {
 //  CONTACTS (MASTER DATA)
 // ══════════════════════════════════════════════
 function renderContacts(filter='') {
-  const list = filter
-    ? state.contacts.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()) || (c.company||'').toLowerCase().includes(filter.toLowerCase()))
-    : state.contacts;
-  document.getElementById('contacts-tbody').innerHTML = list.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);font-family:'Raleway',sans-serif;">No contacts yet.</td></tr>`
-    : list.map(c => {
-        const linkedVendor = state.vendors.find(v => v.contactId === c.id);
-        return `<tr>
-          <td><div style="display:flex;align-items:center;gap:10px;">
-            <div class="guest-avatar">${c.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
-            <div><div style="font-family:'Raleway',sans-serif;font-size:13px;font-weight:600;">${c.name}</div>
-            <div style="font-size:11px;color:var(--muted);">${c.role||''}</div></div>
-          </div></td>
-          <td style="font-family:'Raleway',sans-serif;font-size:13px;">${c.company||'—'}</td>
-          <td style="font-family:'Raleway',sans-serif;font-size:12px;">${c.phone||'—'}</td>
-          <td>${c.whatsapp ? `<a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" style="color:var(--blue);font-size:12px;" target="_blank">💬 WA</a>` : '—'}</td>
-          <td>${c.instagram ? `<a href="https://instagram.com/${c.instagram.replace('@','')}" target="_blank" style="color:var(--blue);font-family:'Raleway',sans-serif;font-size:12px;">${c.instagram}</a>` : '—'}</td>
-          <td style="font-family:'Raleway',sans-serif;font-size:12px;color:var(--muted);max-width:160px;">${c.notes||''}</td>
-          <td>${linkedVendor ? `<span class="badge badge-blue" style="cursor:pointer;" onclick="showPage('vendors')">${linkedVendor.name}</span>` : '—'}</td>
-          <td><button class="btn-danger-ghost" onclick="deleteContact(${c.id})">✕</button></td>
-        </tr>`;
-      }).join('');
+  const f = filter.toLowerCase();
+  const catColors = {'EO / Coordinator':'#c4bdf5','Photography':'#a8d8ea','Videography':'#b8efcc','Hair & Makeup':'#f4a0b5','Attire':'#fce4a0','Florals & Decor':'#b8efcc','Catering':'#fce4a0','Venue':'#c4bdf5','Music / Entertainment':'#a8d8ea','Cake':'#f4a0b5','MC':'#fce4a0','Jewellery':'#f4dfa0','Stationery':'#d4edda','Transportation':'#d4e8f4','Other':'#e8e0f0'};
+
+  // Build rows from vendors
+  let vendorRows = state.vendors
+    .filter(v => !f || v.name.toLowerCase().includes(f) || (v.contactPerson||'').toLowerCase().includes(f) || (v.category||'').toLowerCase().includes(f))
+    .map(v => {
+      const initials = v.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      const cc = catColors[v.category]||'#e8e0f0';
+      const wa = v.whatsapp || v.phone || '';
+      return `<tr>
+        <td><div style="display:flex;align-items:center;gap:10px;">
+          <div class="guest-avatar" style="background:${cc};color:#333;">${initials}</div>
+          <div>
+            <div style="font-family:'Raleway',sans-serif;font-size:13px;font-weight:600;">${v.name}</div>
+            ${v.contactPerson?`<div style="font-size:11px;color:var(--muted);">👤 ${v.contactPerson}</div>`:''}
+          </div>
+        </div></td>
+        <td><span class="badge" style="background:${cc};color:#333;font-size:10px;">${v.category}</span></td>
+        <td style="font-family:'Raleway',sans-serif;font-size:12px;">${v.phone||'—'}</td>
+        <td>${wa ? `<a href="https://wa.me/${wa.replace(/\D/g,'')}" style="color:var(--blue);font-size:12px;font-family:'Raleway',sans-serif;" target="_blank">💬 WA</a>` : '—'}</td>
+        <td>${v.instagram ? `<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" style="color:var(--blue);font-family:'Raleway',sans-serif;font-size:12px;">${v.instagram}</a>` : '—'}</td>
+        <td style="font-family:'Raleway',sans-serif;font-size:12px;color:var(--muted);max-width:160px;">${v.notes||''}</td>
+        <td><span class="badge badge-blue" style="cursor:pointer;" onclick="setVendorCat('${v.category}');showPage('vendors');">→ Vendor</span></td>
+        <td><button class="btn btn-outline btn-sm" onclick="openEditVendor(${v.id})" style="font-size:11px;padding:3px 8px;">✏️ Edit</button></td>
+      </tr>`;
+    });
+
+  // Standalone contacts (non-vendor)
+  let standaloneRows = (state.contacts||[])
+    .filter(c => !f || c.name.toLowerCase().includes(f) || (c.company||'').toLowerCase().includes(f))
+    .map(c => {
+      const initials = c.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      return `<tr>
+        <td><div style="display:flex;align-items:center;gap:10px;">
+          <div class="guest-avatar" style="background:#f5f5f5;color:#555;">${initials}</div>
+          <div>
+            <div style="font-family:'Raleway',sans-serif;font-size:13px;font-weight:600;">${c.name}</div>
+            <div style="font-size:11px;color:var(--muted);">${c.role||''}</div>
+          </div>
+        </div></td>
+        <td style="font-family:'Raleway',sans-serif;font-size:13px;">${c.company||'—'}</td>
+        <td style="font-family:'Raleway',sans-serif;font-size:12px;">${c.phone||'—'}</td>
+        <td>${c.whatsapp ? `<a href="https://wa.me/${c.whatsapp.replace(/\D/g,'')}" style="color:var(--blue);font-size:12px;" target="_blank">💬 WA</a>` : '—'}</td>
+        <td>${c.instagram ? `<a href="https://instagram.com/${c.instagram.replace('@','')}" target="_blank" style="color:var(--blue);font-family:'Raleway',sans-serif;font-size:12px;">${c.instagram}</a>` : '—'}</td>
+        <td style="font-family:'Raleway',sans-serif;font-size:12px;color:var(--muted);max-width:160px;">${c.notes||''}</td>
+        <td><span class="badge badge-grey" style="font-size:10px;">Contact</span></td>
+        <td><button class="btn-danger-ghost" onclick="deleteContact(${c.id})">✕</button></td>
+      </tr>`;
+    });
+
+  const allRows = [...vendorRows, ...standaloneRows];
+  document.getElementById('contacts-tbody').innerHTML = allRows.length === 0
+    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);font-family:'Raleway',sans-serif;">No contacts yet — add vendors to get started.</td></tr>`
+    : allRows.join('');
+  const countEl = document.getElementById('contacts-count');
+  if (countEl) countEl.textContent = `— ${vendorRows.length} vendor${vendorRows.length!==1?'s':''}${standaloneRows.length?' + '+standaloneRows.length+' standalone':''}`;
 }
 function filterContacts(q) { renderContacts(q); }
 function addContact() {
@@ -2683,7 +2721,6 @@ function renderVendors() {
   }
   const catColors = {'EO / Coordinator':'#c4bdf5','Photography':'#a8d8ea','Videography':'#b8efcc','Hair & Makeup':'#f4a0b5','Attire':'#fce4a0','Florals & Decor':'#b8efcc','Catering':'#fce4a0','Venue':'#c4bdf5','Music / Entertainment':'#a8d8ea','Cake':'#f4a0b5','MC':'#fce4a0','Jewellery':'#f4dfa0','Stationery':'#d4edda','Transportation':'#d4e8f4','Other':'#e8e0f0'};
   grid.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;">${filtered.map(v => {
-    const contact = v.contactId ? state.contacts.find(c=>c.id===v.contactId) : null;
     const cc = catColors[v.category]||'#e8e0f0';
     const evChipMap = { church:'⛪', engagement:'🥂', prewedding:'📸', wedding:'🌊' };
     const linkedChips = (v.linkedEvents||[]).map(ev =>
@@ -2702,18 +2739,18 @@ function renderVendors() {
             <button class="btn-danger-ghost" onclick="deleteVendor(${v.id})">✕</button>
           </div>
         </div>
+        ${v.contactPerson?`<div style="padding:6px 10px;background:var(--blue-light);border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <div class="guest-avatar" style="width:24px;height:24px;font-size:10px;">${v.contactPerson.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+          <div style="font-family:'Raleway',sans-serif;font-size:12px;font-weight:600;color:var(--blue);">👤 ${v.contactPerson}</div>
+        </div>`:''}
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
           ${v.phone?`<span style="font-size:12px;color:var(--muted);font-family:'Raleway',sans-serif;">📞 ${v.phone}</span>`:''}
+          ${v.whatsapp?`<a href="https://wa.me/${v.whatsapp.replace(/\D/g,'')}" target="_blank" style="font-size:12px;color:var(--blue);font-family:'Raleway',sans-serif;font-weight:600;">💬 WA</a>`:''}
           ${v.instagram?`<a href="https://instagram.com/${v.instagram.replace('@','')}" target="_blank" style="font-size:12px;color:var(--blue);font-family:'Raleway',sans-serif;">📸 ${v.instagram}</a>`:''}
           ${v.email?`<span style="font-size:12px;color:var(--muted);font-family:'Raleway',sans-serif;">✉️ ${v.email}</span>`:''}
           ${v.website?`<a href="${v.website}" target="_blank" style="font-size:12px;color:var(--blue);font-family:'Raleway',sans-serif;">🌐 Website</a>`:''}
           ${v.contractUrl?`<a href="${v.contractUrl}" target="_blank" style="font-size:12px;color:#4a9e6b;font-family:'Raleway',sans-serif;font-weight:600;">📄 Contract</a>`:''}
         </div>
-        ${contact?`<div style="padding:7px 10px;background:var(--blue-light);border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
-          <div class="guest-avatar" style="width:24px;height:24px;font-size:10px;">${contact.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
-          <div><div style="font-family:'Raleway',sans-serif;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;" onclick="showPage('contacts')">${contact.name}</div>
-          <div style="font-size:11px;color:var(--muted);">${contact.role||''}</div></div>
-        </div>`:''}
         ${v.notes?`<div style="font-size:12px;color:var(--muted);font-family:'Raleway',sans-serif;border-top:1px solid var(--border);padding-top:8px;margin-bottom:8px;">${v.notes}</div>`:''}
         <!-- Package Tiers -->
         <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
@@ -3244,9 +3281,12 @@ function saveEditVendor() {
   });
   closeModal('modal-edit-vendor');
   renderVendors();
+  // Contacts page is derived from vendors — if open, refresh it too
+  if (document.getElementById('page-contacts')?.classList.contains('active')) renderContacts();
+  scheduleSave();
 }
 
-function deleteVendor(id) { state.vendors = state.vendors.filter(v => v.id !== id); renderVendors(); }
+function deleteVendor(id) { state.vendors = state.vendors.filter(v => v.id !== id); renderVendors(); scheduleSave(); }
 function openQuoteFromVendor(vendorId, eventKey) {
   const pageMap = { church:'venue-church', engagement:'engagement', prewedding:'prewedding', wedding:'venue-bali' };
   const ev = state.eventData[eventKey];
@@ -3677,66 +3717,67 @@ function exportGuestPDF(evKey) {
   // Which events to include
   const eventsToShow = evKey ? evDefs.filter(e => e.key === evKey) : evDefs;
 
-  // Helper: build a side-section table, optionally grouped by guestGroup
-  function sideTable(guests, side, startNum) {
-    const sideguests = guests.filter(g => g.side === side || (side === 'Both' && g.side === 'Both'));
+  // ── Helper: build guest rows, sub-grouped by guestGroup within a side ──
+  function sideSection(evGuests, side, counter) {
+    const sideguests = evGuests.filter(g => g.side === side);
     if (sideguests.length === 0) return '';
     const sidePax = sideguests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
 
-    // Group guests by their groupId
-    const groupMap = {};
+    // sub-group by groupId (named groups first, ungrouped last)
+    const groupMap = new Map();
     sideguests.forEach(g => {
       const grp = (state.guestGroups||[]).find(x=>x.id===g.groupId);
-      const key = grp ? grp.id : '__none__';
-      const label = grp ? grp.name : '— No Group —';
-      if (!groupMap[key]) groupMap[key] = { label, guests:[] };
-      groupMap[key].guests.push(g);
+      const key = grp ? String(grp.id) : '__none__';
+      if (!groupMap.has(key)) groupMap.set(key, { label: grp ? grp.name : null, guests:[] });
+      groupMap.get(key).guests.push(g);
     });
 
-    let rowIdx = startNum;
-    const rows = Object.values(groupMap).map(grpData => {
-      const grpHeader = `<tr><td colspan="7" style="padding:4px 10px;background:#f5f5f5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#777;border-top:1px solid #e0e0e0;">${grpData.label}</td></tr>`;
-      const grpRows = grpData.guests.map(g => {
-        const pax = 1 + (g.plusGuests||0);
-        const rsvpBg = g.rsvp==='Confirmed'?'#e8f5e9':g.rsvp==='Declined'?'#ffebee':'#fff3e0';
-        const rsvpColor = g.rsvp==='Confirmed'?'#2e7d32':g.rsvp==='Declined'?'#c62828':'#e65100';
-        const grp = (state.guestGroups||[]).find(x=>x.id===g.groupId);
-        const grpBg    = grp ? (grp.side==='Bride'?'#fce4ec':grp.side==='Groom'?'#e3f2fd':'#f3e5f5') : '#f5f5f5';
-        const grpColor = grp ? (grp.side==='Bride'?'#880e4f':grp.side==='Groom'?'#0d47a1':'#4a148c') : '#999';
-        const row = `<tr>
-          <td style="padding:6px 10px;color:#888;">${rowIdx}</td>
-          <td style="padding:6px 10px;font-weight:600;color:#1a2e44;">${g.name}</td>
-          <td style="padding:6px 10px;text-align:center;">${grp ? `<span style="background:${grpBg};color:${grpColor};padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;">${grp.name}</span>` : '<span style="color:#bbb;">—</span>'}</td>
-          <td style="padding:6px 10px;text-align:center;color:#555;">${g.meal}</td>
-          <td style="padding:6px 10px;text-align:center;">
-            <span style="background:${rsvpBg};color:${rsvpColor};padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;">${g.rsvp}</span>
-          </td>
-          <td style="padding:6px 10px;text-align:center;color:#555;">${g.plusGuests > 0 ? '+' + g.plusGuests : '—'}</td>
-          <td style="padding:6px 10px;text-align:center;font-weight:700;color:#1a2e44;">${g.rsvp !== 'Declined' ? pax : '<span style="color:#bbb;">—</span>'}</td>
+    const sideLabel = side === 'Bride' ? '🤍 Bride Side' : side === 'Groom' ? '🤍 Groom Side' : '🤍 Both';
+    const sideAccent = side === 'Bride' ? '#b5838d' : side === 'Groom' ? '#4a6fa5' : '#7e6b8f';
+
+    let rows = '';
+    groupMap.forEach(grpData => {
+      if (grpData.label) {
+        rows += `<tr>
+          <td colspan="6" style="padding:7px 12px 4px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${sideAccent};border-bottom:1px solid #f0e8e0;background:#fdfaf7;">${grpData.label}</td>
         </tr>`;
-        rowIdx++;
-        return row;
-      }).join('');
-      return grpHeader + grpRows;
-    }).join('');
+      }
+      grpData.guests.forEach(g => {
+        const pax = 1 + (g.plusGuests||0);
+        const rsvpColor = g.rsvp==='Confirmed'?'#3a7d44':g.rsvp==='Declined'?'#a33':g.rsvp==='Pending'?'#b36000':'#888';
+        const rsvpChar  = g.rsvp==='Confirmed'?'✓':g.rsvp==='Declined'?'✗':'…';
+        rows += `<tr style="border-bottom:1px solid #f3ece5;">
+          <td style="padding:7px 6px 7px 12px;font-size:10px;color:#bbb;width:28px;">${counter.n++}</td>
+          <td style="padding:7px 8px;font-size:12.5px;font-weight:600;color:#1a1a2e;font-family:'Garamond','Georgia',serif;">${g.name}</td>
+          <td style="padding:7px 8px;font-size:11px;color:#888;text-align:center;">${g.meal==='Standard'?'—':g.meal}</td>
+          <td style="padding:7px 8px;font-size:11px;color:${rsvpColor};text-align:center;font-weight:700;">${rsvpChar} ${g.rsvp}</td>
+          <td style="padding:7px 8px;font-size:11px;color:#888;text-align:center;">${g.plusGuests>0?'+'+g.plusGuests:'—'}</td>
+          <td style="padding:7px 12px 7px 8px;font-size:12px;font-weight:700;color:#1a1a2e;text-align:right;">${g.rsvp!=='Declined'?pax:'—'}</td>
+        </tr>`;
+      });
+    });
 
     return `
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#888;margin:12px 0 6px;">${side} Side &nbsp;·&nbsp; ${sideguests.length} guest${sideguests.length!==1?'s':''} &nbsp;·&nbsp; ${sidePax} pax</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
-        <thead><tr style="background:#f0f0f0;">
-          <th style="padding:5px 10px;text-align:left;color:#555;font-weight:600;">#</th>
-          <th style="padding:5px 10px;text-align:left;color:#555;font-weight:600;">Name</th>
-          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Group</th>
-          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Meal</th>
-          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Status</th>
-          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">+Guests</th>
-          <th style="padding:5px 10px;text-align:center;color:#555;font-weight:600;">Pax</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid ${sideAccent};padding-bottom:4px;margin-bottom:0;">
+          <span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:${sideAccent};">${sideLabel}</span>
+          <span style="font-size:10px;color:#aaa;letter-spacing:.5px;">${sideguests.length} guest${sideguests.length!==1?'s':''} &nbsp;·&nbsp; ${sidePax} pax</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:#faf6f2;">
+            <th style="padding:5px 6px 5px 12px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;width:28px;">#</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;">Name</th>
+            <th style="padding:5px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;">Meal</th>
+            <th style="padding:5px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;">Status</th>
+            <th style="padding:5px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;">+Guests</th>
+            <th style="padding:5px 12px 5px 8px;text-align:right;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#bbb;">Pax</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
-  // Build event sections
+  // ── Build summary stats ──
   let allGuestsForSummary = evKey ? state.guests.filter(g=>(g.events||[]).includes(evKey)) : state.guests;
   if (allGuestsForSummary.length === 0) { _showToast('No guests to export', 'var(--muted)'); return; }
 
@@ -3746,74 +3787,98 @@ function exportGuestPDF(evKey) {
   const declCount = allGuestsForSummary.filter(g=>g.rsvp==='Declined').length;
   const confPax   = allGuestsForSummary.filter(g=>g.rsvp==='Confirmed').reduce((s,g)=>s+1+(g.plusGuests||0),0);
 
+  // ── Build event sections ──
   const eventSections = eventsToShow.map(ev => {
     const evGuests = state.guests.filter(g => (g.events||[]).includes(ev.key));
     if (evGuests.length === 0) return '';
-    const evPax = evGuests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
+    const evPax  = evGuests.filter(g=>g.rsvp!=='Declined').reduce((s,g)=>s+1+(g.plusGuests||0),0);
     const evConf = evGuests.filter(g=>g.rsvp==='Confirmed').length;
     const evPend = evGuests.filter(g=>g.rsvp==='Pending').length;
     const evDecl = evGuests.filter(g=>g.rsvp==='Declined').length;
-
-    const brideGuests = evGuests.filter(g => g.side === 'Bride');
-    const groomGuests = evGuests.filter(g => g.side === 'Groom');
-    const bothGuests  = evGuests.filter(g => g.side === 'Both');
+    const brideG = evGuests.filter(g=>g.side==='Bride').length;
+    const groomG = evGuests.filter(g=>g.side==='Groom').length;
+    const counter = { n: 1 };  // shared row counter per event
 
     return `
-      <div style="margin-top:28px;page-break-inside:avoid;">
-        <div style="background:#1a2e44;color:#fff;padding:10px 16px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:15px;font-weight:700;">${ev.emoji} ${ev.label}</div>
-          <div style="font-size:12px;opacity:.8;">${evGuests.length} groups &nbsp;·&nbsp; ${evPax} pax</div>
+      <div style="margin-top:32px;page-break-inside:avoid;">
+        <div style="border-top:2px solid #1a1a2e;padding-top:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-size:16px;font-family:'Garamond','Georgia',serif;font-weight:700;color:#1a1a2e;letter-spacing:.3px;">${ev.emoji} ${ev.label}</div>
+          <div style="font-size:10px;color:#aaa;letter-spacing:.5px;">${evGuests.length} guests &nbsp;·&nbsp; ${evPax} pax</div>
         </div>
-        <div style="background:#f8f9fa;padding:8px 16px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 6px 6px;display:flex;gap:20px;font-size:11px;color:#555;margin-bottom:8px;">
-          <span>✓ Confirmed: <strong style="color:#2e7d32">${evConf}</strong></span>
-          <span>⏳ Pending: <strong style="color:#e65100">${evPend}</strong></span>
-          <span>✗ Declined: <strong style="color:#c62828">${evDecl}</strong></span>
-          <span>👰 Bride: <strong>${brideGuests.length}</strong></span>
-          <span>🤵 Groom: <strong>${groomGuests.length}</strong></span>
+        <div style="display:flex;gap:24px;font-size:10.5px;color:#777;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #ede5db;">
+          <span>Confirmed &nbsp;<strong style="color:#3a7d44;font-size:12px;">${evConf}</strong> <span style="color:#aaa;">(${evGuests.filter(g=>g.rsvp==='Confirmed').reduce((s,g)=>s+1+(g.plusGuests||0),0)} pax)</span></span>
+          <span>Pending &nbsp;<strong style="color:#b36000;font-size:12px;">${evPend}</strong></span>
+          <span>Declined &nbsp;<strong style="color:#a33;font-size:12px;">${evDecl}</strong></span>
+          <span style="margin-left:auto;">Bride side &nbsp;<strong>${brideG}</strong> &nbsp;·&nbsp; Groom side &nbsp;<strong>${groomG}</strong></span>
         </div>
-        ${brideGuests.length > 0 ? sideTable(evGuests, 'Bride', 1) : ''}
-        ${groomGuests.length > 0 ? sideTable(evGuests, 'Groom', brideGuests.length + 1) : ''}
-        ${bothGuests.length  > 0 ? sideTable(evGuests, 'Both',  brideGuests.length + groomGuests.length + 1) : ''}
+        ${sideSection(evGuests, 'Bride', counter)}
+        ${sideSection(evGuests, 'Groom', counter)}
+        ${sideSection(evGuests, 'Both', counter)}
       </div>`;
   }).join('');
 
+  // ── Groups legend ──
+  const groupsLegend = (()=>{
+    const groups = state.guestGroups||[];
+    if (!groups.length) return '';
+    const chips = groups.map(g=>{
+      const dot = g.side==='Bride'?'#b5838d':g.side==='Groom'?'#4a6fa5':'#7e6b8f';
+      const cnt = state.guests.filter(gu=>gu.groupId===g.id).length;
+      return `<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid #e0d8d0;border-radius:20px;padding:3px 10px 3px 8px;margin:3px 4px;font-size:10.5px;color:#555;">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;"></span>
+        ${g.name} <span style="color:#bbb;">${g.side}${cnt?' · '+cnt+' guest'+(cnt!==1?'s':''):''})</span>
+      </span>`;
+    }).join('');
+    return `<div style="margin:16px 0 0;padding:12px 16px;border:1px solid #ede5db;border-radius:6px;background:#fdfaf7;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-bottom:8px;">Guest Groups</div>
+      ${chips}
+    </div>`;
+  })();
+
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>Guest List — Giorgio & Grace</title>
     <style>
-      body { font-family: 'Georgia', serif; margin: 36px; color: #1a2e44; font-size: 13px; }
-      h1 { font-size: 26px; margin: 0 0 2px; letter-spacing: -0.5px; }
-      h2 { font-size: 13px; font-weight: 400; color: #888; margin: 0 0 20px; }
-      .summary-box { display: flex; gap: 0; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
-      .summary-cell { flex: 1; padding: 12px 16px; text-align: center; border-right: 1px solid #ddd; }
-      .summary-cell:last-child { border-right: none; }
-      .summary-cell .num { font-size: 24px; font-weight: 700; font-family: 'Georgia', serif; color: #1a2e44; }
-      .summary-cell .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-top: 2px; }
-      @media print { body { margin: 18px; } .no-break { page-break-inside: avoid; } }
+      *, *::before, *::after { box-sizing: border-box; }
+      body { font-family: 'Raleway', sans-serif; margin: 0; padding: 40px 48px; color: #1a1a2e; font-size: 12px; background: #fff; }
+      @media print {
+        body { padding: 24px 32px; }
+        .page-break { page-break-before: always; }
+        .no-break { page-break-inside: avoid; }
+      }
     </style>
   </head><body>
-    <h1>💍 Giorgio & Grace</h1>
-    <h2>Wedding Guest List &nbsp;·&nbsp; ${evKey ? eventsToShow[0]?.emoji + ' ' + eventsToShow[0]?.label : 'All Events'} &nbsp;·&nbsp; ${dateStr}</h2>
 
-    <div class="summary-box">
-      <div class="summary-cell"><div class="num">${allGuestsForSummary.length}</div><div class="lbl">Total Groups</div></div>
-      <div class="summary-cell"><div class="num">${totalPax}</div><div class="lbl">Total Pax</div></div>
-      <div class="summary-cell"><div class="num" style="color:#2e7d32">${confCount}</div><div class="lbl">Confirmed (${confPax} pax)</div></div>
-      <div class="summary-cell"><div class="num" style="color:#e65100">${pendCount}</div><div class="lbl">Pending</div></div>
-      <div class="summary-cell"><div class="num" style="color:#c62828">${declCount}</div><div class="lbl">Declined</div></div>
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #ede5db;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#b5838d;font-family:'Raleway',sans-serif;font-weight:600;margin-bottom:8px;">Wedding Guest List</div>
+      <div style="font-size:40px;font-family:'Cormorant Garamond',serif;font-weight:400;color:#1a1a2e;letter-spacing:.5px;line-height:1.1;">Giorgio &amp; Grace</div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px;letter-spacing:1px;">${evKey ? eventsToShow[0]?.label : 'All Events'} &nbsp;·&nbsp; ${dateStr}</div>
     </div>
 
-    ${(()=>{
-      const groups = state.guestGroups||[];
-      if (!groups.length) return '';
-      const cells = groups.map(g=>{
-        const bg = g.side==='Bride'?'#fce4ec':g.side==='Groom'?'#e3f2fd':'#f3e5f5';
-        const cl = g.side==='Bride'?'#880e4f':g.side==='Groom'?'#0d47a1':'#4a148c';
-        const cnt = state.guests.filter(gu=>gu.groupId===g.id).length;
-        return `<span style="display:inline-block;background:${bg};color:${cl};border:1px solid ${cl}33;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:3px 4px;">${g.name} <span style="opacity:.7;">(${g.side}${cnt?' · '+cnt:''})</span></span>`;
-      }).join('');
-      return `<div style="margin:12px 0 20px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;margin-bottom:6px;">Guest Groups</div>${cells}</div>`;
-    })()}
+    <!-- Summary strip -->
+    <div style="display:flex;text-align:center;margin-bottom:24px;background:#fdfaf7;border:1px solid #ede5db;border-radius:8px;overflow:hidden;">
+      <div style="flex:1;padding:14px 10px;border-right:1px solid #ede5db;">
+        <div style="font-size:26px;font-family:'Cormorant Garamond',serif;font-weight:600;color:#1a1a2e;">${totalPax}</div>
+        <div style="font-size:8.5px;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-top:3px;">Total Pax</div>
+      </div>
+      <div style="flex:1;padding:14px 10px;border-right:1px solid #ede5db;">
+        <div style="font-size:26px;font-family:'Cormorant Garamond',serif;font-weight:600;color:#3a7d44;">${confCount}</div>
+        <div style="font-size:8.5px;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-top:3px;">Confirmed (${confPax} pax)</div>
+      </div>
+      <div style="flex:1;padding:14px 10px;border-right:1px solid #ede5db;">
+        <div style="font-size:26px;font-family:'Cormorant Garamond',serif;font-weight:600;color:#b36000;">${pendCount}</div>
+        <div style="font-size:8.5px;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-top:3px;">Pending</div>
+      </div>
+      <div style="flex:1;padding:14px 10px;">
+        <div style="font-size:26px;font-family:'Cormorant Garamond',serif;font-weight:600;color:#a33;">${declCount}</div>
+        <div style="font-size:8.5px;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-top:3px;">Declined</div>
+      </div>
+    </div>
+
+    ${groupsLegend}
     ${eventSections}
+
     <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
 
@@ -5262,6 +5327,10 @@ function loadFromStorage() {
     const saved = JSON.parse(raw);
     // Rehydrate weddingDate string → Date object
     if (saved.weddingDate) saved.weddingDate = new Date(saved.weddingDate);
+    // Migrate old 'table' field — strip it so we don't show stale Table # in the Group column
+    if (saved.guests) saved.guests.forEach(g => { if (!('groupId' in g)) g.groupId = null; delete g.table; });
+    // Ensure guestGroups exists
+    if (!saved.guestGroups) saved.guestGroups = [];
     // Merge saved data into state (preserves any keys not in saved)
     Object.assign(state, saved);
     return true;
