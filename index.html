@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Wedding Atelier — Giorgio & Grace</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -689,6 +690,11 @@
             style="padding:6px 14px;border-radius:8px;border:1.5px solid var(--navy);background:var(--navy);color:#fff;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
             📄 Save PDF
           </button>
+          <button onclick="downloadGuestTemplate()" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-family:'Raleway',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📥 Template</button>
+          <label style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--success);background:var(--success);color:#fff;font-family:'Raleway',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;">
+            📤 Import Excel
+            <input type="file" id="guest-import-file" accept=".xlsx,.xls" style="display:none;" onchange="importGuestExcel(this)">
+          </label>
           <button class="btn btn-primary btn-sm" onclick="populateGroupSelects();openModal('modal-add-guest')">+ Add Guest</button>
         </div>
       </div>
@@ -1398,9 +1404,6 @@
             <input type="checkbox" id="ev-engagement" style="accent-color:var(--blue);width:15px;height:15px;"> 💍 Engagement (Tingjing / Sangjit)
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;transition:background .15s;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
-            <input type="checkbox" id="ev-prewedding" style="accent-color:var(--blue);width:15px;height:15px;"> 📸 Pre-Wedding Shoot
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;transition:background .15s;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
             <input type="checkbox" id="ev-wedding" style="accent-color:var(--blue);width:15px;height:15px;"> 🌊 Wedding Reception — Bali
           </label>
         </div>
@@ -1465,9 +1468,6 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
             <input type="checkbox" id="edit-ev-engagement" style="accent-color:var(--blue);width:15px;height:15px;"> 💍 Engagement (Tingjing / Sangjit)
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
-            <input type="checkbox" id="edit-ev-prewedding" style="accent-color:var(--blue);width:15px;height:15px;"> 📸 Pre-Wedding Shoot
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Raleway',sans-serif;font-size:13px;" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''">
             <input type="checkbox" id="edit-ev-wedding" style="accent-color:var(--blue);width:15px;height:15px;"> 🌊 Wedding Reception — Bali
@@ -3661,7 +3661,6 @@ function renderGuestAnalytics() {
   const evDefs = [
     { key: 'church',      label: '⛪ Church',       color: '#c4bdf5' },
     { key: 'engagement',  label: '💍 Engagement',   color: '#a8d8ea' },
-    { key: 'prewedding',  label: '📸 Pre-Wedding',  color: '#b8efcc' },
     { key: 'wedding',     label: '🌊 Wedding',      color: '#fce4a0' },
   ];
 
@@ -3707,10 +3706,9 @@ function renderGuestAnalytics() {
 
 function exportGuestPDF(evKey) {
   const evDefs = [
-    { key:'church',     label:'Church — Surabaya',          emoji:'⛪' },
+    { key:'church',     label:'Church — Surabaya',             emoji:'⛪' },
     { key:'engagement', label:'Engagement (Tingjing/Sangjit)', emoji:'💍' },
-    { key:'prewedding', label:'Pre-Wedding Shoot',           emoji:'📸' },
-    { key:'wedding',    label:'Wedding Reception — Bali',    emoji:'🌊' },
+    { key:'wedding',    label:'Wedding Reception — Bali',      emoji:'🌊' },
   ];
   const dateStr = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -3941,8 +3939,8 @@ function renderGuests() {
     </div>
   `;
 
-  const evLabel  = { church:'⛪ Church', engagement:'💍 Engagement', prewedding:'📸 Pre-Wed', wedding:'🌊 Wedding' };
-  const evColors = { church:'badge-blue', engagement:'badge-rose', prewedding:'badge-grey', wedding:'badge-green' };
+  const evLabel  = { church:'⛪ Church', engagement:'💍 Engagement', wedding:'🌊 Wedding' };
+  const evColors = { church:'badge-blue', engagement:'badge-rose', wedding:'badge-green' };
   const rsvpBadge = { 'Confirmed':'badge-green', 'Pending':'badge-gold', 'Declined':'badge-red' };
 
   // Render event filter tabs
@@ -3950,7 +3948,6 @@ function renderGuests() {
     { key:'', label:'All Guests', count: state.guests.length },
     { key:'church',     label:'⛪ Church',     count: state.guests.filter(g=>(g.events||[]).includes('church')).length },
     { key:'engagement', label:'💍 Engagement', count: state.guests.filter(g=>(g.events||[]).includes('engagement')).length },
-    { key:'prewedding', label:'📸 Pre-Wed',    count: state.guests.filter(g=>(g.events||[]).includes('prewedding')).length },
     { key:'wedding',    label:'🌊 Wedding',    count: state.guests.filter(g=>(g.events||[]).includes('wedding')).length },
   ];
   const tabsEl = document.getElementById('guest-event-tabs');
@@ -3968,7 +3965,7 @@ function renderGuests() {
   // Update PDF button label to match active tab
   const pdfBtn = document.getElementById('guest-pdf-btn');
   if (pdfBtn) {
-    const evLabelMap = {church:'⛪ Church',engagement:'💍 Engagement',prewedding:'📸 Pre-Wed',wedding:'🌊 Wedding'};
+    const evLabelMap = {church:'⛪ Church',engagement:'💍 Engagement',wedding:'🌊 Wedding'};
     pdfBtn.textContent = evTab ? `📄 PDF — ${evLabelMap[evTab]||evTab}` : '📄 Save PDF (All)';
     pdfBtn.onclick = () => exportGuestPDF(evTab || null);
   }
@@ -4097,7 +4094,7 @@ function updateGuestRSVP(id, rsvp) {
 
 
 function addGuest() {
-  const evKeys = ['church','engagement','prewedding','wedding'];
+  const evKeys = ['church','engagement','wedding'];
   const events = evKeys.filter(k => { const el = document.getElementById('ev-'+k); return el && el.checked; });
   const rawGroupId = document.getElementById('guest-group-id').value;
   state.guests.push({
@@ -4120,6 +4117,67 @@ function addGuest() {
 }
 function deleteGuest(id) { state.guests = state.guests.filter(g=>g.id!==id); renderGuests(); scheduleSave(); }
 
+function downloadGuestTemplate() {
+  if (typeof XLSX === 'undefined') { _showToast('Excel library loading — try again', 'var(--muted)'); return; }
+  const groupList = (state.guestGroups||[]).map(g=>g.name).join(' | ') || '(add groups first on Guest page)';
+  const wb = XLSX.utils.book_new();
+  const headers = ['Name','Side','RSVP','Meal Preference','Group Name','Additional Guests','Church (YES/NO)','Engagement (YES/NO)','Wedding (YES/NO)'];
+  const example = ['Budi Santoso','Groom','Confirmed','Standard','Groom Family','1','YES','NO','YES'];
+  const hint    = ['↑ Example — delete this row before import','Bride / Groom / Both','Pending / Confirmed / Declined','Standard / Vegetarian / Vegan / Halal / Gluten Free','Groups available: '+groupList,'0 = alone  1 = brings 1 extra  etc.','YES or NO','YES or NO','YES or NO'];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example, hint]);
+  ws['!cols'] = [26,10,12,22,26,22,18,20,18].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Guest List');
+  XLSX.writeFile(wb, 'GuestList_Template.xlsx');
+  _showToast('Template downloaded — fill it out and import', 'var(--success)');
+}
+
+function importGuestExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { _showToast('Excel library not loaded yet — try again', 'var(--danger)'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'binary' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      let imported = 0, skipped = 0;
+      rows.forEach(row => {
+        const name = (row['Name']||'').toString().trim();
+        if (!name || name.startsWith('↑')) { skipped++; return; }
+        const groupName = (row['Group Name']||'').toString().trim();
+        const grp = (state.guestGroups||[]).find(g => g.name.toLowerCase() === groupName.toLowerCase());
+        const evs = [];
+        if ((row['Church (YES/NO)']||'').toString().toUpperCase()==='YES')     evs.push('church');
+        if ((row['Engagement (YES/NO)']||'').toString().toUpperCase()==='YES') evs.push('engagement');
+        if ((row['Wedding (YES/NO)']||'').toString().toUpperCase()==='YES')    evs.push('wedding');
+        const sideRaw = (row['Side']||'').toString().trim();
+        const rsvpRaw = (row['RSVP']||'').toString().trim();
+        const mealRaw = (row['Meal Preference']||'').toString().trim();
+        state.guests.push({
+          id:         Date.now() + imported,
+          name,
+          side:       ['Bride','Groom','Both'].includes(sideRaw) ? sideRaw : 'Groom',
+          rsvp:       ['Pending','Confirmed','Declined'].includes(rsvpRaw) ? rsvpRaw : 'Pending',
+          meal:       ['Standard','Vegetarian','Vegan','Halal','Gluten Free'].includes(mealRaw) ? mealRaw : 'Standard',
+          groupId:    grp ? grp.id : null,
+          plusGuests: Math.max(0, parseInt(row['Additional Guests']||0)||0),
+          events:     evs,
+        });
+        imported++;
+      });
+      renderGuests();
+      scheduleSave();
+      input.value = '';
+      _showToast('✓ Imported ' + imported + ' guest' + (imported!==1?'s':'') + (skipped?' ('+skipped+' skipped)':''), 'var(--success)');
+    } catch(err) {
+      _showToast('Import failed: ' + err.message, 'var(--danger)');
+      input.value = '';
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
 function openEditGuest(id) {
   const g = state.guests.find(x => x.id === id);
   if (!g) return;
@@ -4131,7 +4189,7 @@ function openEditGuest(id) {
   populateGroupSelects();
   document.getElementById('edit-guest-group-id').value   = g.groupId || '';
   document.getElementById('edit-guest-plus-count').value  = g.plusGuests || 0;
-  ['church','engagement','prewedding','wedding'].forEach(ev => {
+  ['church','engagement','wedding'].forEach(ev => {
     const cb = document.getElementById('edit-ev-' + ev);
     if (cb) cb.checked = Array.isArray(g.events) && g.events.includes(ev);
   });
@@ -4149,7 +4207,7 @@ function saveEditGuest() {
   const egVal  = document.getElementById('edit-guest-group-id').value;
   g.groupId    = egVal ? parseInt(egVal) : null;
   g.plusGuests = parseInt(document.getElementById('edit-guest-plus-count').value) || 0;
-  g.events     = ['church','engagement','prewedding','wedding'].filter(ev => document.getElementById('edit-ev-' + ev)?.checked);
+  g.events     = ['church','engagement','wedding'].filter(ev => document.getElementById('edit-ev-' + ev)?.checked);
   closeModal('modal-edit-guest');
   renderGuests();
   scheduleSave();
