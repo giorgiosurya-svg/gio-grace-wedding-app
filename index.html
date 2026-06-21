@@ -4035,14 +4035,18 @@ function renderGuests() {
 
 // ── GUEST GROUPS ────────────────────────────────
 function addGuestGroup() {
-  const name = (document.getElementById('new-group-name').value || '').trim();
-  if (!name) return;
-  const side = document.getElementById('new-group-side').value;
-  if (!state.guestGroups) state.guestGroups = [];
+  const inp = document.getElementById('new-group-name');
+  if (!inp) return;
+  const name = (inp.value || '').trim();
+  if (!name) { inp.focus(); inp.style.border='1.5px solid var(--danger)'; setTimeout(()=>inp.style.border='',1500); return; }
+  inp.style.border='';
+  const side = document.getElementById('new-group-side').value || 'Both';
+  if (!Array.isArray(state.guestGroups)) state.guestGroups = [];
   state.guestGroups.push({ id: Date.now(), name, side });
-  document.getElementById('new-group-name').value = '';
+  inp.value = '';
   renderGuestGroups();
   populateGroupSelects();
+  _showToast('Group "' + name + '" added', 'var(--success)');
   scheduleSave();
 }
 
@@ -5431,6 +5435,12 @@ if (state.weddingDate) {
   }
 }
 renderDashboard();
+
+// ── Guest Groups: Enter key on name input ──
+(function wireGuestGroupInput() {
+  const inp = document.getElementById('new-group-name');
+  if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addGuestGroup(); } });
+})();
 
 // ── FIRST-RUN: prompt to set wedding date ──
 (function firstRunDatePrompt() {
